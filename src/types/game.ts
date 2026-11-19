@@ -51,6 +51,8 @@ export interface HandTrackingState {
   fps: number;
 }
 
+export type CameraDisplayMode = 'hidden' | 'hand_only' | 'video';
+
 export interface AccessibilitySettings {
   /** Normalized pinch start threshold (default 0.36; higher = easier to pinch) */
   pinchThreshold: number;
@@ -58,6 +60,8 @@ export interface AccessibilitySettings {
   smoothingFactor: number;
   soundEnabled: boolean;
   narrationEnabled: boolean;
+  /** Controls webcam preview visibility to prevent self-video distraction */
+  cameraDisplayMode: CameraDisplayMode;
 }
 
 export interface VisualToken {

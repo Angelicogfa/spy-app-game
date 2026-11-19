@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: AccessibilitySettings = {
   smoothingFactor: 0.34,
   soundEnabled: true,
   narrationEnabled: true,
+  cameraDisplayMode: 'hidden',
 };
 
 export function createInitialProgress(): PlayerProgress {

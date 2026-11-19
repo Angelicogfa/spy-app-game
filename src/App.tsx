@@ -11,6 +11,7 @@ import { generateMissionChallenges } from './data/missions';
 import { useHandTracking } from './hooks/useHandTracking';
 import {
   AccessibilitySettings,
+  CameraDisplayMode,
   DifficultyLevel,
   GameScreen,
   MissionChallenge,
@@ -71,6 +72,17 @@ export default function App() {
       const updated = {
         ...prev,
         settings: { ...prev.settings, narrationEnabled: nextNarration },
+      };
+      saveProgress(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleChangeCameraDisplayMode = useCallback((mode: CameraDisplayMode) => {
+    setProgress((prev) => {
+      const updated = {
+        ...prev,
+        settings: { ...prev.settings, cameraDisplayMode: mode },
       };
       saveProgress(updated);
       return updated;
@@ -183,6 +195,7 @@ export default function App() {
           onStartCamera={startCamera}
           onCalibrationComplete={handleCalibrationComplete}
           onHoldingChange={setHoldingCursorItem}
+          onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
         />
       )}
 
@@ -195,6 +208,7 @@ export default function App() {
           onSelectLevel={setSelectedLevel}
           onSelectMission={(d) => handleStartMission(d)}
           onToggleSound={handleToggleSound}
+          onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
         />
       )}
 
@@ -210,6 +224,7 @@ export default function App() {
           onExitToMap={() => handleNavigate('MISSION_MAP')}
           onToggleSound={handleToggleSound}
           onToggleNarration={handleToggleNarration}
+          onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
           onCompleteMission={handleMissionCompleted}
           onHoldingChange={setHoldingCursorItem}
         />

@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
+  EyeOff,
+  Hand,
   Lightbulb,
   Sparkles,
   Star,
+  Video,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import { getMissionMeta } from '../data/missions';
 import {
   AccessibilitySettings,
+  CameraDisplayMode,
   DifficultyLevel,
   DraggableItem,
   HandTrackingState,
@@ -52,6 +56,7 @@ interface MissionArenaProps {
   onExitToMap: () => void;
   onToggleSound: () => void;
   onToggleNarration: () => void;
+  onChangeCameraDisplayMode: (mode: CameraDisplayMode) => void;
   onCompleteMission: (payload: MissionCompletionPayload) => void;
   onHoldingChange: (item: { label: string; emoji: string } | null) => void;
 }
@@ -66,6 +71,7 @@ export function MissionArena({
   onExitToMap,
   onToggleSound,
   onToggleNarration,
+  onChangeCameraDisplayMode,
   onCompleteMission,
   onHoldingChange,
 }: MissionArenaProps) {
@@ -513,9 +519,16 @@ export function MissionArena({
       ? Object.values(placedByZone).reduce((acc, l) => acc + l.length, 0)
       : 0;
 
+  const camMode = settings.cameraDisplayMode;
+  const cycleCameraMode = () => {
+    const next: CameraDisplayMode =
+      camMode === 'hidden' ? 'hand_only' : camMode === 'hand_only' ? 'video' : 'hidden';
+    onChangeCameraDisplayMode(next);
+  };
+
   return (
-    <main className="mx-auto max-w-[1360px] px-5 py-5">
-      {/* Unobtrusive Top Mission HUD */}
+    <main className="mx-auto max-w-[1000px] px-5 py-5">
+      {/* Centered Unobtrusive Top Mission HUD */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0] px-5 py-3">
         <div className="flex items-center gap-4">
           <button
@@ -540,17 +553,17 @@ export function MissionArena({
           </div>
         </div>
 
-        {/* Step Progress Dots (Clear non-hue-only text + progress) */}
-        <div className="flex items-center gap-4">
+        {/* Step Progress & Quick Controls */}
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold text-[#14532D] tabular-nums">
-              Etapa {stepIndex + 1} de {challenges.length}
+              Etapa {stepIndex + 1}/{challenges.length}
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {challenges.map((c, idx) => (
                 <div
                   key={c.id}
-                  className={`h-3 w-7 rounded-full transition-colors ${
+                  className={`h-2.5 w-6 rounded-full transition-colors ${
                     idx < stepIndex
                       ? 'bg-[#059669]'
                       : idx === stepIndex
@@ -562,7 +575,29 @@ export function MissionArena({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={cycleCameraMode}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#D9CEB8] bg-white px-2.5 py-2 text-xs font-bold text-[#1C1917] hover:bg-[#FFFBF2] whitespace-nowrap cursor-pointer"
+              title="Alternar câmera: Oculta, Só Mão ou Vídeo"
+            >
+              {camMode === 'hidden' ? (
+                <EyeOff className="h-3.5 w-3.5 text-[#14532D]" />
+              ) : camMode === 'hand_only' ? (
+                <Hand className="h-3.5 w-3.5 text-[#EC4899]" />
+              ) : (
+                <Video className="h-3.5 w-3.5 text-[#B45309]" />
+              )}
+              <span>
+                {camMode === 'hidden'
+                  ? 'Câmera Oculta'
+                  : camMode === 'hand_only'
+                    ? 'Só Mão'
+                    : 'Vídeo'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={onToggleSound}
@@ -585,16 +620,14 @@ export function MissionArena({
                   : 'border-[#D9CEB8] bg-white text-[#57534E]'
               }`}
             >
-              {settings.narrationEnabled ? 'Voz: Ligada' : 'Voz: Desligada'}
+              {settings.narrationEnabled ? 'Voz: On' : 'Voz: Off'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Two-Zone Educational Game Layout: Left Stage (8 cols) + Right Camera & Hint Deck (4 cols) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* PRIMARY INTERACTIVE STAGE */}
-        <section className="flex flex-col justify-between rounded-3xl border border-[#D9CEB8] bg-white p-6 shadow-sm lg:col-span-8">
+      {/* CENTERED PRIMARY INTERACTIVE STAGE (Zero side video distraction!) */}
+      <section className="mx-auto flex flex-col justify-between rounded-3xl border border-[#D9CEB8] bg-white p-6 shadow-sm sm:p-8">
           {/* Scene Banner & Short Clear Prompt */}
           <div className="flex flex-col gap-4 border-b border-[#EFE7D4] pb-5 sm:flex-row sm:items-center">
             <div className="h-20 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0]">
@@ -1104,34 +1137,35 @@ export function MissionArena({
               </span>
             </button>
 
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#57534E]">
-              <Star className="h-4 w-4 fill-[#EAB308] text-[#B45309]" />
-              <span>Cada etapa concluída aproxima você da Estrela Stella!</span>
+            <div className="flex items-center gap-3 text-xs font-semibold text-[#57534E]">
+              <span className="font-mono text-[#14532D]">
+                {tracking.handDetected
+                  ? tracking.isPinching
+                    ? 'Pinça ativa'
+                    : 'Mão detectada'
+                  : 'Mostre a mão para a câmera'}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <Star className="h-4 w-4 fill-[#EAB308] text-[#B45309]" />
+                <span>Estrela Stella</span>
+              </span>
             </div>
           </div>
         </section>
 
-        {/* RIGHT SIDEBAR: LIVE CAMERA MIRROR & GESTURE COACH */}
-        <aside className="flex flex-col gap-4 lg:col-span-4">
-          <CameraMirror videoRef={videoRef} tracking={tracking} />
-
-          <div className="rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0] p-4">
-            <h3 className="font-display text-base font-bold text-[#14532D]">
-              Guia da Missão Atual
-            </h3>
-            <p className="mt-1.5 text-xs leading-relaxed text-[#44403C]">
-              {challenge.mode === 'pinch_choice'
-                ? 'Aponte o indicador sobre o cartão da resposta certa e junte o polegar com o indicador (Pinça) para confirmar.'
-                : 'Aponte sobre o objeto, feche a Pinça para segurar, leve até a área pontilhada e abra os dedos para soltar.'}
-            </p>
-            {hintTier > 0 && (
-              <div className="mt-3 rounded-xl border border-[#EAB308]/40 bg-[#FEF9C3] p-3 text-xs font-medium text-[#78350F]">
-                <strong>Dica ativa:</strong> {challenge.hintText}
-              </div>
-            )}
+        {/* Optional Floating Corner Preview (never pushes the centered game stage!) */}
+        {camMode !== 'hidden' && (
+          <div className="fixed bottom-4 right-4 z-40 w-64">
+            <CameraMirror
+              videoRef={videoRef}
+              tracking={tracking}
+              displayMode={camMode}
+              onChangeDisplayMode={onChangeCameraDisplayMode}
+              compact
+            />
           </div>
-        </aside>
-      </div>
+        )}
     </main>
   );
 }

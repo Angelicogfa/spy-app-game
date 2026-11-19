@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Camera, CheckCircle2, RefreshCw, Sparkles } from 'lucide-react';
-import { AccessibilitySettings, HandTrackingState } from '../types/game';
+import { ArrowRight, Camera, CheckCircle2, EyeOff, Hand, RefreshCw, Sparkles, Video } from 'lucide-react';
+import { AccessibilitySettings, CameraDisplayMode, HandTrackingState } from '../types/game';
 import { playChallengeSuccess, playPinchGrab, speakPtBr } from '../utils/audio';
 import { CameraMirror } from './CameraMirror';
 
@@ -11,6 +11,7 @@ interface CalibrationScreenProps {
   onStartCamera: () => Promise<void>;
   onCalibrationComplete: () => void;
   onHoldingChange: (item: { label: string; emoji: string } | null) => void;
+  onChangeCameraDisplayMode: (mode: CameraDisplayMode) => void;
 }
 
 export function CalibrationScreen({
@@ -20,6 +21,7 @@ export function CalibrationScreen({
   onStartCamera,
   onCalibrationComplete,
   onHoldingChange,
+  onChangeCameraDisplayMode,
 }: CalibrationScreenProps) {
   const [holdingPeanut, setHoldingPeanut] = useState(false);
   const [calibrated, setCalibrated] = useState(false);
@@ -123,19 +125,60 @@ export function CalibrationScreen({
   ]);
 
   return (
-    <main className="mx-auto max-w-[1360px] px-6 py-8">
-      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
+    <main className="mx-auto max-w-[960px] px-6 py-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold text-[#57534E]">
-            Etapa de Preparação · Câmera e Gestos
+            Etapa de Preparação · Somente a mão exibida na tela
           </p>
           <h1 className="mt-1 font-display text-3xl font-extrabold text-[#14532D]">
             Treino de Mãos da Anya
           </h1>
         </div>
-        <p className="text-sm text-[#57534E]">
-          Use apenas gestos no ar: aponte o indicador e junte com o polegar para pinçar.
-        </p>
+
+        {/* Camera Display Mode Toggle */}
+        <div
+          className="flex items-center gap-1 rounded-xl border border-[#D9CEB8] bg-[#F6EFE0] p-1"
+          role="group"
+          aria-label="Visibilidade da câmera"
+        >
+          <button
+            type="button"
+            onClick={() => onChangeCameraDisplayMode('hidden')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap cursor-pointer ${
+              settings.cameraDisplayMode === 'hidden'
+                ? 'bg-[#14532D] text-white'
+                : 'text-[#57534E] hover:text-[#1C1917]'
+            }`}
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            <span>Câmera Oculta</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeCameraDisplayMode('hand_only')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap cursor-pointer ${
+              settings.cameraDisplayMode === 'hand_only'
+                ? 'bg-[#14532D] text-white'
+                : 'text-[#57534E] hover:text-[#1C1917]'
+            }`}
+          >
+            <Hand className="h-3.5 w-3.5" />
+            <span>Só Mão</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeCameraDisplayMode('video')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap cursor-pointer ${
+              settings.cameraDisplayMode === 'video'
+                ? 'bg-[#14532D] text-white'
+                : 'text-[#57534E] hover:text-[#1C1917]'
+            }`}
+          >
+            <Video className="h-3.5 w-3.5" />
+            <span>Vídeo</span>
+          </button>
+        </div>
       </div>
 
       {/* Camera error or permission denied recovery */}
@@ -184,128 +227,126 @@ export function CalibrationScreen({
           </h2>
           <p className="mt-2 text-sm text-[#57534E]">
             Quando o navegador pedir permissão de câmera, clique em &ldquo;Permitir&rdquo;
-            para que possamos enxergar suas mãos.
+            para que possamos enxergar apenas sua mão.
           </p>
         </div>
       )}
 
-      {/* Active Calibration Playground */}
+      {/* Centered Active Calibration Playground */}
       {tracking.status === 'ready' && (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          {/* Interactive Stage (Left 8 cols) */}
-          <div className="flex flex-col justify-between rounded-3xl border border-[#D9CEB8] bg-white p-8 lg:col-span-8">
-            <div className="flex items-center justify-between gap-4 border-b border-[#EFE7D4] pb-4">
-              <div>
-                <span className="text-xs font-semibold text-[#EC4899]">
-                  {calibrated ? 'Treino concluído!' : 'Passo 1 de 1 · Prática de Pinça'}
-                </span>
-                <h2 className="font-display text-2xl font-bold text-[#1C1917]">
-                  {calibrated
-                    ? 'Waku waku! Suas mãos estão calibradas!'
-                    : 'Pegue o amendoim com pinça e solte na mochila'}
-                </h2>
-              </div>
-              {calibrated && <CheckCircle2 className="h-9 w-9 shrink-0 text-[#059669]" />}
+        <section className="mx-auto flex flex-col justify-between rounded-3xl border border-[#D9CEB8] bg-white p-8 shadow-sm">
+          <div className="flex items-center justify-between gap-4 border-b border-[#EFE7D4] pb-4">
+            <div>
+              <span className="text-xs font-semibold text-[#EC4899]">
+                {calibrated ? 'Treino concluído!' : 'Passo 1 de 1 · Prática de Pinça'}
+              </span>
+              <h2 className="font-display text-2xl font-bold text-[#1C1917]">
+                {calibrated
+                  ? 'Waku waku! Suas mãos estão calibradas!'
+                  : 'Pegue o amendoim com pinça e solte na mochila'}
+              </h2>
             </div>
+            {calibrated && <CheckCircle2 className="h-9 w-9 shrink-0 text-[#059669]" />}
+          </div>
 
-            {!calibrated ? (
-              <div className="my-8 grid min-h-[300px] grid-cols-1 items-center gap-8 sm:grid-cols-2">
-                {/* Draggable Giant Peanut */}
-                <div className="flex flex-col items-center justify-center">
-                  <div
-                    ref={peanutRef}
-                    className={`flex h-44 w-44 flex-col items-center justify-center rounded-3xl border-4 transition-transform duration-150 ${
-                      holdingPeanut
-                        ? 'scale-90 border-dashed border-[#D9CEB8] bg-[#FFFBF2] opacity-40'
-                        : hoveringPeanut
-                          ? 'scale-105 border-[#EC4899] bg-[#FEF3C7] shadow-lg'
-                          : 'animate-float-gentle border-[#F59E0B] bg-[#FEF3C7] shadow-sm'
-                    }`}
-                  >
-                    <span className="text-7xl leading-none">🥜</span>
-                    <span className="mt-2 font-display text-base font-bold text-[#78350F]">
-                      {holdingPeanut ? 'Segurando!' : 'Amendoim'}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-center text-xs font-semibold text-[#57534E]">
-                    1. Aponte aqui e junte polegar + indicador
-                  </p>
-                </div>
-
-                {/* Target Satchel */}
-                <div className="flex flex-col items-center justify-center">
-                  <div
-                    ref={bagRef}
-                    className={`flex h-48 w-52 flex-col items-center justify-center rounded-3xl border-4 border-dashed transition-transform duration-150 ${
-                      holdingPeanut && hoveringBag
-                        ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
-                        : holdingPeanut
-                          ? 'border-[#14532D] bg-[#F0FDF4]'
-                          : 'border-[#14532D]/50 bg-[#F6EFE0]'
-                    }`}
-                  >
-                    <span className="text-7xl leading-none">🎒</span>
-                    <span className="mt-2 font-display text-base font-bold text-[#14532D]">
-                      Mochila da Anya
-                    </span>
-                    <span className="mt-0.5 text-xs text-[#57534E]">
-                      {holdingPeanut && hoveringBag ? 'Solte a pinça agora!' : 'Solte o amendoim aqui'}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-center text-xs font-semibold text-[#57534E]">
-                    2. Leve até a mochila e abra os dedos
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="my-10 flex flex-col items-center justify-center text-center">
-                <div className="animate-stella-pop flex h-28 w-28 items-center justify-center rounded-full bg-[#FEF9C3] text-6xl shadow-md">
-                  ⭐
-                </div>
-                <p className="mt-5 max-w-md text-base text-[#44403C]">
-                  Excelente! Agora você já sabe apontar e fazer pinça. Aponte e faça pinça
-                  no botão abaixo para escolher sua primeira missão!
-                </p>
-
-                <button
-                  ref={continueBtnRef}
-                  type="button"
-                  onClick={onCalibrationComplete}
-                  className={`mt-7 inline-flex items-center gap-3 rounded-2xl px-8 py-4 font-display text-lg font-bold text-white transition-transform duration-150 cursor-pointer ${
-                    hoveringContinue
-                      ? 'scale-105 bg-[#EC4899] ring-4 ring-[#FBCFE8] shadow-lg'
-                      : 'bg-[#14532D] hover:bg-[#1B6B3A]'
+          {!calibrated ? (
+            <div className="my-10 grid min-h-[300px] grid-cols-1 items-center gap-10 sm:grid-cols-2">
+              {/* Draggable Giant Peanut */}
+              <div className="flex flex-col items-center justify-center">
+                <div
+                  ref={peanutRef}
+                  className={`flex h-48 w-48 flex-col items-center justify-center rounded-3xl border-4 transition-transform duration-150 ${
+                    holdingPeanut
+                      ? 'scale-90 border-dashed border-[#D9CEB8] bg-[#FFFBF2] opacity-40'
+                      : hoveringPeanut
+                        ? 'scale-105 border-[#EC4899] bg-[#FEF3C7] shadow-lg'
+                        : 'animate-float-gentle border-[#F59E0B] bg-[#FEF3C7] shadow-sm'
                   }`}
                 >
-                  <span>Ir para o Mapa de Missões</span>
-                  <ArrowRight className="h-5 w-5" />
-                </button>
+                  <span className="text-7xl leading-none">🥜</span>
+                  <span className="mt-2 font-display text-base font-bold text-[#78350F]">
+                    {holdingPeanut ? 'Segurando!' : 'Amendoim'}
+                  </span>
+                </div>
+                <p className="mt-3 text-center text-xs font-semibold text-[#57534E]">
+                  1. Aponte aqui e junte polegar + indicador
+                </p>
               </div>
-            )}
 
-            <div className="flex items-center justify-between border-t border-[#EFE7D4] pt-4 text-xs text-[#57534E]">
-              <span>Dica: fique a cerca de 50 cm da webcam com boa iluminação.</span>
-              <span className="font-mono tabular-nums">
-                {tracking.handDetected ? 'Mão detectada' : 'Aguardando mão'}
-              </span>
+              {/* Target Satchel */}
+              <div className="flex flex-col items-center justify-center">
+                <div
+                  ref={bagRef}
+                  className={`flex h-52 w-56 flex-col items-center justify-center rounded-3xl border-4 border-dashed transition-transform duration-150 ${
+                    holdingPeanut && hoveringBag
+                      ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
+                      : holdingPeanut
+                        ? 'border-[#14532D] bg-[#F0FDF4]'
+                        : 'border-[#14532D]/50 bg-[#F6EFE0]'
+                  }`}
+                >
+                  <span className="text-7xl leading-none">🎒</span>
+                  <span className="mt-2 font-display text-base font-bold text-[#14532D]">
+                    Mochila da Anya
+                  </span>
+                  <span className="mt-0.5 text-xs text-[#57534E]">
+                    {holdingPeanut && hoveringBag ? 'Solte a pinça agora!' : 'Solte o amendoim aqui'}
+                  </span>
+                </div>
+                <p className="mt-3 text-center text-xs font-semibold text-[#57534E]">
+                  2. Leve até a mochila e abra os dedos
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* Live Mirror Sidebar (Right 4 cols) */}
-          <div className="flex flex-col gap-4 lg:col-span-4">
-            <CameraMirror videoRef={videoRef} tracking={tracking} />
-
-            <div className="rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0] p-4 text-xs leading-relaxed text-[#44403C]">
-              <p className="font-display text-sm font-bold text-[#14532D]">
-                Ajuste rápido para responsáveis
+          ) : (
+            <div className="my-10 flex flex-col items-center justify-center text-center">
+              <div className="animate-stella-pop flex h-28 w-28 items-center justify-center rounded-full bg-[#FEF9C3] text-6xl shadow-md">
+                ⭐
+              </div>
+              <p className="mt-5 max-w-md text-base text-[#44403C]">
+                Excelente! Agora você já sabe apontar e fazer pinça. Aponte e faça pinça
+                no botão abaixo para escolher sua primeira missão!
               </p>
-              <p className="mt-1">
-                Se a criança achar difícil fechar a pinça, segure o botão{' '}
-                <strong>Responsáveis</strong> no topo para aumentar a sensibilidade da pinça
-                no painel.
-              </p>
+
+              <button
+                ref={continueBtnRef}
+                type="button"
+                onClick={onCalibrationComplete}
+                className={`mt-7 inline-flex items-center gap-3 rounded-2xl px-8 py-4 font-display text-lg font-bold text-white transition-transform duration-150 cursor-pointer ${
+                  hoveringContinue
+                    ? 'scale-105 bg-[#EC4899] ring-4 ring-[#FBCFE8] shadow-lg'
+                    : 'bg-[#14532D] hover:bg-[#1B6B3A]'
+                }`}
+              >
+                <span>Ir para o Mapa de Missões</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
             </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#EFE7D4] pt-4 text-xs text-[#57534E]">
+            <span>Levante sua mão aberta em frente à câmera — o vídeo fica oculto para evitar distrações.</span>
+            <span className="font-mono font-semibold text-[#14532D] tabular-nums">
+              {tracking.handDetected
+                ? tracking.isPinching
+                  ? 'Mão detectada · Pinça ativa'
+                  : 'Mão detectada · Apontando'
+                : 'Aguardando mão...'}
+            </span>
           </div>
+        </section>
+      )}
+
+      {/* Optional Floating Corner Preview (only rendered when user enables hand_only or video) */}
+      {tracking.status === 'ready' && settings.cameraDisplayMode !== 'hidden' && (
+        <div className="fixed bottom-4 right-4 z-40 w-64">
+          <CameraMirror
+            videoRef={videoRef}
+            tracking={tracking}
+            displayMode={settings.cameraDisplayMode}
+            onChangeDisplayMode={onChangeCameraDisplayMode}
+            compact
+          />
         </div>
       )}
     </main>

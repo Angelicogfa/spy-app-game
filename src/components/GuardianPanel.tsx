@@ -251,6 +251,43 @@ export function GuardianPanel({
                 </div>
               </div>
 
+              {/* Camera Display Mode (Anti-distraction control for ASD focus) */}
+              <div className="border-t border-[#D9CEB8] pt-4">
+                <span className="block text-xs font-bold text-[#1C1917]">
+                  Exibição da Câmera (Foco no Jogo)
+                </span>
+                <p className="mt-0.5 text-[11px] text-[#57534E]">
+                  Oculte o vídeo para evitar que a criança se distraia com a própria imagem.
+                </p>
+                <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                  {(
+                    [
+                      { id: 'hidden', label: 'Oculta (Só Mão)' },
+                      { id: 'hand_only', label: 'Painel Só Mão' },
+                      { id: 'video', label: 'Vídeo Completo' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        onUpdateSettings({
+                          ...progress.settings,
+                          cameraDisplayMode: opt.id,
+                        })
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] font-bold transition-colors cursor-pointer ${
+                        progress.settings.cameraDisplayMode === opt.id
+                          ? 'border-[#14532D] bg-[#14532D] text-white'
+                          : 'border-[#D9CEB8] bg-white text-[#44403C] hover:bg-[#FFFBF2]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Audio & Voice Toggles */}
               <div className="space-y-3 border-t border-[#D9CEB8] pt-4">
                 <label className="flex items-center justify-between gap-3 text-sm font-semibold text-[#1C1917] cursor-pointer">
