@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Lightbulb, Sparkles, Star, Volume2 } from 'lucide-react';
+import { CheckCircle2, Lightbulb, Sparkles, Star } from 'lucide-react';
+import { MISSION_BRIEFINGS } from '../data/characters';
 import { getMissionMeta } from '../data/missions';
 import {
   AccessibilitySettings,
@@ -21,8 +22,8 @@ import {
   speakPtBr,
   stopSpeaking,
 } from '../utils/audio';
-import { ArtworkImage } from './ArtworkImage';
 import { CameraMirror } from './CameraMirror';
+import { CharacterNarrator, MissionIntroCutscene, NarratorMood } from './CharacterNarrator';
 import { GameHud } from './GameHud';
 
 export interface MissionCompletionPayload {
@@ -71,6 +72,7 @@ export function MissionArena({
 }: MissionArenaProps) {
   const missionMeta = useMemo(() => getMissionMeta(domain), [domain]);
 
+  const [showIntro, setShowIntro] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
   const [hintTier, setHintTier] = useState<0 | 1 | 2 | 3>(0);
   const [hadMissThisStep, setHadMissThisStep] = useState(false);
@@ -101,6 +103,8 @@ export function MissionArena({
   const hintBtnRef = useRef<HTMLButtonElement | null>(null);
   const undoBtnRef = useRef<HTMLButtonElement | null>(null);
   const backBtnRef = useRef<HTMLButtonElement | null>(null);
+  const introStartBtnRef = useRef<HTMLButtonElement | null>(null);
+  const replayAudioBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const prevPinchRef = useRef<boolean>(false);
   const lastHoveredRef = useRef<string | null>(null);
@@ -108,8 +112,25 @@ export function MissionArena({
   const advanceTimerRef = useRef<number | null>(null);
 
   const challenge = challenges[stepIndex];
+  const briefing = MISSION_BRIEFINGS[domain];
+
+  const handleDismissIntro = useCallback(() => {
+    stopSpeaking();
+    startTimeRef.current = Date.now();
+    setShowIntro(false);
+  }, []);
+
+  // Speak the character's animated mission introduction when entering the mission
+  useEffect(() => {
+    if (!showIntro) return;
+    speakPtBr(briefing.narration, settings.narrationEnabled);
+    return () => {
+      stopSpeaking();
+    };
+  }, [showIntro, briefing.narration, settings.narrationEnabled]);
 
   useEffect(() => {
+    if (showIntro) return;
     setHintTier(0);
     setHadMissThisStep(false);
     setFeedback(null);
@@ -127,7 +148,7 @@ export function MissionArena({
     return () => {
       stopSpeaking();
     };
-  }, [stepIndex, challenge, settings.narrationEnabled, onHoldingChange]);
+  }, [showIntro, stepIndex, challenge, settings.narrationEnabled, onHoldingChange]);
 
   useEffect(() => {
     return () => {
@@ -284,12 +305,49 @@ export function MissionArena({
 
     let hovered: string | null = null;
 
+    if (showIntro) {
+      if (isInside(introStartBtnRef.current, 18)) {
+        hovered = 'btn_intro_start';
+        if (justPinched) {
+          successfulPinchesRef.current += 1;
+          playPinchGrab(settings.soundEnabled);
+          handleDismissIntro();
+          return;
+        }
+      } else if (isInside(backBtnRef.current, 12)) {
+        hovered = 'btn_back';
+        if (justPinched) {
+          successfulPinchesRef.current += 1;
+          playPinchGrab(settings.soundEnabled);
+          onExitToMap();
+          return;
+        }
+      }
+
+      if (hovered !== lastHoveredRef.current) {
+        lastHoveredRef.current = hovered;
+        setHoveredTargetId(hovered);
+        if (hovered) {
+          playSoftHover(settings.soundEnabled);
+        }
+      }
+      return;
+    }
+
     if (!holdingDragId && !holdingSeqId) {
       if (isInside(hintBtnRef.current, 12)) {
         hovered = 'btn_hint';
         if (justPinched) {
           successfulPinchesRef.current += 1;
           activateManualHint();
+          return;
+        }
+      } else if (isInside(replayAudioBtnRef.current, 14)) {
+        hovered = 'btn_replay_audio';
+        if (justPinched) {
+          successfulPinchesRef.current += 1;
+          playSoftHover(settings.soundEnabled);
+          speakPtBr(challenge.narrationText, true);
           return;
         }
       } else if (isInside(undoBtnRef.current, 12)) {
@@ -461,6 +519,7 @@ export function MissionArena({
     }
   }, [
     tracking,
+    showIntro,
     challenge,
     telepathyRevealed,
     holdingDragId,
@@ -473,6 +532,7 @@ export function MissionArena({
     settings.soundEnabled,
     settings.narrationEnabled,
     activateManualHint,
+    handleDismissIntro,
     handleUndoLastDrag,
     onExitToMap,
     onHoldingChange,
@@ -489,9 +549,16 @@ export function MissionArena({
 
   const camMode = settings.cameraDisplayMode;
 
+  const narratorMood: NarratorMood =
+    feedback?.type === 'success'
+      ? 'celebrate'
+      : feedback?.type === 'encourage'
+        ? 'encourage'
+        : 'idle';
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Floating Game HUD with 5 Glowing Mission Progress Stars */}
+    <div className="flex h-dvh flex-col overflow-hidden">
+      {/* Slim Floating Game HUD with 5 Mission Progress Stars */}
       <GameHud
         totalStars={totalStars}
         settings={settings}
@@ -505,7 +572,7 @@ export function MissionArena({
         onChangeCameraDisplayMode={onChangeCameraDisplayMode}
         onOpenGuardian={onOpenGuardian}
         centerSlot={
-          <div className="flex items-center gap-2 rounded-2xl border-2 border-[#D9CEB8] bg-[#FFFDF7] px-4 py-1.5 shadow-xs">
+          <div className="flex h-9 items-center gap-2 rounded-xl border-2 border-[#D9CEB8] bg-[#FFFDF7] px-3.5 shadow-xs">
             <span className="hidden font-display text-xs font-extrabold text-[#14532D] sm:inline">
               {missionMeta.shortTitle}
             </span>
@@ -513,7 +580,7 @@ export function MissionArena({
               {challenges.map((c, idx) => (
                 <Star
                   key={c.id}
-                  className={`h-5 w-5 transition-transform duration-200 ${
+                  className={`h-4 w-4 transition-transform duration-200 ${
                     idx < stepIndex
                       ? 'fill-[#EAB308] text-[#B45309] scale-105'
                       : idx === stepIndex
@@ -527,67 +594,56 @@ export function MissionArena({
         }
       />
 
-      {/* CENTERED COZY GAME BOARD */}
-      <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col justify-center px-4 py-3 sm:px-6">
-        <section className="game-board-frame flex flex-col justify-between p-5 sm:p-7">
-          {/* Character Companion Speech Header */}
-          <div className="flex items-center gap-4 rounded-3xl border-2 border-[#EFE7D4] bg-[#F8F4E8] p-3.5 sm:p-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-3 border-[#FFFDF7] bg-[#DCFCE7] shadow-sm sm:h-20 sm:w-20">
-              <ArtworkImage
-                src={missionMeta.imagePath}
-                alt={challenge.characterName}
-                fallbackTitle={challenge.characterName}
-                fallbackGradient={missionMeta.fallbackGradient}
-                className="h-full w-full object-cover"
+      {/* CENTERED FULL-HEIGHT GAME BOARD (Zero Scroll!) */}
+      <main className="mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col px-4 pb-3 pt-1 sm:px-5">
+        <section className="game-board-frame relative flex min-h-0 flex-1 flex-col justify-between p-4 sm:p-5">
+          {showIntro ? (
+            <MissionIntroCutscene
+              domain={domain}
+              startButtonRef={introStartBtnRef}
+              startHovered={hoveredTargetId === 'btn_intro_start'}
+              onReplayIntro={() => speakPtBr(briefing.narration, true)}
+              onStartMission={handleDismissIntro}
+            />
+          ) : (
+            <>
+              {/* Animated Character Narrator Strip (portrait talks & reacts with speech bubble!) */}
+              <CharacterNarrator
+                characterName={challenge.characterName}
+                domain={domain}
+                prompt={challenge.prompt}
+                mood={narratorMood}
+                replayButtonRef={replayAudioBtnRef}
+                replayHovered={hoveredTargetId === 'btn_replay_audio'}
+                onReplayAudio={() => speakPtBr(challenge.narrationText, true)}
               />
-            </div>
 
-            <div className="flex-1">
-              <span className="font-display text-xs font-extrabold text-[#1B6B3A]">
-                {challenge.characterName}
-              </span>
-              <h1 className="mt-0.5 font-display text-xl font-extrabold leading-snug text-[#1C1917] sm:text-2xl">
-                {challenge.prompt}
-              </h1>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => speakPtBr(challenge.narrationText, true)}
-              className="game-btn-3d flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#DCFCE7] cursor-pointer"
-              title="Ouvir instrução novamente"
-              aria-label="Ouvir instrução novamente"
-            >
-              <Volume2 className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Warm Celebratory or Encouraging Toast */}
-          {feedback && (
-            <div
-              className={`mt-4 flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-3 text-center font-display text-base font-bold ${
-                feedback.type === 'success'
-                  ? 'border-[#059669] bg-[#DCFCE7] text-[#14532D]'
-                  : 'border-[#EAB308] bg-[#FEF9C3] text-[#78350F]'
-              }`}
-              role="status"
-            >
-              {feedback.type === 'success' ? (
-                <CheckCircle2 className="h-6 w-6 shrink-0 text-[#059669]" />
-              ) : (
-                <Sparkles className="h-5 w-5 shrink-0 text-[#B45309]" />
+              {/* Floating Feedback Toast (overlays cleanly without pushing game board down!) */}
+              {feedback && (
+                <div
+                  className={`pointer-events-none absolute left-1/2 top-20 z-30 flex -translate-x-1/2 items-center gap-2 rounded-2xl border-2 px-5 py-2.5 text-center font-display text-sm font-extrabold shadow-lg sm:text-base ${
+                    feedback.type === 'success'
+                      ? 'border-[#059669] bg-[#DCFCE7] text-[#14532D]'
+                      : 'border-[#EAB308] bg-[#FEF9C3] text-[#78350F]'
+                  }`}
+                  role="status"
+                >
+                  {feedback.type === 'success' ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-[#059669]" />
+                  ) : (
+                    <Sparkles className="h-5 w-5 shrink-0 text-[#B45309]" />
+                  )}
+                  <span>{feedback.message}</span>
+                </div>
               )}
-              <span>{feedback.message}</span>
-            </div>
-          )}
 
-          {/* PLAYABLE GAME SURFACE */}
-          <div className="my-5 flex-1">
+              {/* MAXIMIZED PLAYABLE GAME SURFACE */}
+              <div className="flex min-h-0 flex-1 flex-col justify-center py-2.5">
             {/* MODE 1: DRAG COUNT */}
             {challenge.mode === 'drag_count' && challenge.dropZones && (
-              <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-12">
-                <div className="rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-5 md:col-span-7">
-                  <div className="grid grid-cols-3 gap-3.5 sm:grid-cols-4">
+              <div className="grid h-full grid-cols-1 items-center gap-5 md:grid-cols-12">
+                <div className="flex h-full items-center justify-center rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-4 md:col-span-7">
+                  <div className="grid w-full grid-cols-3 gap-3 sm:grid-cols-4">
                     {remainingDragItems.map((item, idx) => {
                       const isHolding = holdingDragId === item.id;
                       const isHovered = hoveredTargetId === `drag_${item.id}`;
@@ -597,7 +653,7 @@ export function MissionArena({
                           ref={(el) => {
                             dragItemRefs.current[item.id] = el;
                           }}
-                          className={`game-token-3d flex h-24 flex-col items-center justify-center rounded-2xl select-none ${
+                          className={`game-token-3d flex h-20 flex-col items-center justify-center rounded-2xl select-none sm:h-24 ${
                             isHolding
                               ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
                               : isHovered
@@ -607,7 +663,7 @@ export function MissionArena({
                         >
                           <span className="text-4xl leading-none">{item.emoji}</span>
                           {hintTier >= 2 && (
-                            <span className="mt-1 font-mono text-xs font-bold text-[#78350F] tabular-nums">
+                            <span className="mt-0.5 font-mono text-xs font-bold text-[#78350F] tabular-nums">
                               {idx + 1}
                             </span>
                           )}
@@ -617,7 +673,7 @@ export function MissionArena({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 md:col-span-5">
+                <div className="flex h-full flex-col justify-center gap-3 md:col-span-5">
                   {challenge.dropZones.map((zone) => {
                     const placed = placedByZone[zone.id] || [];
                     const isHovered = hoveredTargetId === `zone_${zone.id}`;
@@ -628,7 +684,7 @@ export function MissionArena({
                         ref={(el) => {
                           dropZoneRefs.current[zone.id] = el;
                         }}
-                        className={`flex min-h-[250px] flex-1 flex-col items-center justify-between rounded-[2rem] border-4 border-dashed p-5 text-center shadow-inner transition-transform duration-150 ${
+                        className={`flex h-full min-h-[220px] flex-1 flex-col items-center justify-center rounded-[2rem] border-4 border-dashed p-4 text-center shadow-inner transition-transform duration-150 ${
                           holdingDragId && isHovered
                             ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                             : hintTier >= 3 && holdingDragId
@@ -636,19 +692,17 @@ export function MissionArena({
                               : `${zone.accentBorder} ${zone.accentBg}`
                         }`}
                       >
-                        <div>
-                          <span className="text-6xl leading-none">{zone.emoji}</span>
-                          <h2 className="mt-2 font-display text-xl font-extrabold text-[#14532D]">
-                            {zone.label}
-                          </h2>
-                          <div className="mt-2 inline-flex rounded-xl bg-white/90 px-4 py-1 font-display text-2xl font-extrabold text-[#1C1917] tabular-nums shadow-xs">
-                            {placed.length} / {target}
-                          </div>
+                        <span className="text-6xl leading-none">{zone.emoji}</span>
+                        <h2 className="mt-2 font-display text-lg font-extrabold text-[#14532D]">
+                          {zone.label}
+                        </h2>
+                        <div className="mt-1.5 inline-flex rounded-xl bg-white/90 px-4 py-0.5 font-display text-2xl font-extrabold text-[#1C1917] tabular-nums shadow-xs">
+                          {placed.length} / {target}
                         </div>
 
                         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                           {placed.map((p) => (
-                            <span key={p.id} className="text-3xl leading-none">
+                            <span key={p.id} className="text-2xl leading-none">
                               {p.emoji}
                             </span>
                           ))}
@@ -662,7 +716,7 @@ export function MissionArena({
                       ref={undoBtnRef}
                       type="button"
                       onClick={handleUndoLastDrag}
-                      className={`game-btn-3d rounded-2xl border-2 border-[#B45309] border-b-[#78350F] bg-[#FEF3C7] px-4 py-3 font-display text-sm font-extrabold text-[#78350F] cursor-pointer ${
+                      className={`game-btn-3d rounded-2xl border-2 border-[#B45309] border-b-[#78350F] bg-[#FEF3C7] px-4 py-2 font-display text-sm font-extrabold text-[#78350F] cursor-pointer ${
                         hoveredTargetId === 'btn_undo' ? 'scale-105 ring-4 ring-[#FBCFE8]' : ''
                       }`}
                     >
@@ -675,9 +729,9 @@ export function MissionArena({
 
             {/* MODE 2: DRAG TO BUCKETS */}
             {challenge.mode === 'drag_buckets' && challenge.dropZones && (
-              <div className="flex flex-col gap-5">
-                <div className="rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-4">
-                  <div className="flex flex-wrap justify-center gap-3.5">
+              <div className="flex h-full flex-col justify-center gap-4">
+                <div className="rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-3.5">
+                  <div className="flex flex-wrap justify-center gap-3">
                     {remainingDragItems.map((item) => {
                       const isHolding = holdingDragId === item.id;
                       const isHovered = hoveredTargetId === `drag_${item.id}`;
@@ -687,7 +741,7 @@ export function MissionArena({
                           ref={(el) => {
                             dragItemRefs.current[item.id] = el;
                           }}
-                          className={`game-token-3d flex min-w-[116px] flex-col items-center justify-center rounded-2xl px-4 py-3.5 select-none ${
+                          className={`game-token-3d flex min-w-[104px] flex-col items-center justify-center rounded-2xl px-3.5 py-2.5 select-none ${
                             isHolding
                               ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
                               : isHovered
@@ -695,8 +749,8 @@ export function MissionArena({
                                 : `${item.accentBorder} border-b-[#57534E]/40 ${item.accentBg}`
                           }`}
                         >
-                          <span className="text-5xl leading-none">{item.emoji}</span>
-                          <span className="mt-1.5 font-display text-sm font-extrabold text-[#1C1917]">
+                          <span className="text-4xl leading-none">{item.emoji}</span>
+                          <span className="mt-1 font-display text-xs font-extrabold text-[#1C1917]">
                             {item.label}
                           </span>
                         </div>
@@ -706,7 +760,7 @@ export function MissionArena({
                 </div>
 
                 <div
-                  className={`grid grid-cols-1 gap-4 ${
+                  className={`grid flex-1 grid-cols-1 gap-4 ${
                     challenge.dropZones.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
                   }`}
                 >
@@ -728,7 +782,7 @@ export function MissionArena({
                         ref={(el) => {
                           dropZoneRefs.current[zone.id] = el;
                         }}
-                        className={`flex min-h-[185px] flex-col items-center justify-between rounded-[2rem] border-4 border-dashed p-5 text-center shadow-inner transition-transform duration-150 ${
+                        className={`flex min-h-[155px] flex-col items-center justify-center rounded-[1.8rem] border-4 border-dashed p-4 text-center shadow-inner transition-transform duration-150 ${
                           holdingDragId && isHovered
                             ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                             : shouldHintGlow
@@ -736,29 +790,29 @@ export function MissionArena({
                               : `${zone.accentBorder} ${zone.accentBg}`
                         }`}
                       >
-                        <div>
-                          <span className="text-5xl leading-none">{zone.emoji}</span>
-                          <h2 className="mt-1.5 font-display text-lg font-extrabold text-[#1C1917]">
-                            {zone.label}
-                          </h2>
-                          {zone.targetCount && (
-                            <span className="mt-1 inline-block rounded-lg bg-white/85 px-2.5 py-0.5 font-mono text-sm font-bold text-[#14532D] tabular-nums">
-                              {placed.length} / {zone.targetCount}
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-4xl leading-none">{zone.emoji}</span>
+                        <h2 className="mt-1 font-display text-base font-extrabold text-[#1C1917]">
+                          {zone.label}
+                        </h2>
+                        {zone.targetCount && (
+                          <span className="mt-0.5 inline-block rounded-lg bg-white/85 px-2.5 py-0.5 font-mono text-xs font-bold text-[#14532D] tabular-nums">
+                            {placed.length} / {zone.targetCount}
+                          </span>
+                        )}
 
-                        <div className="mt-3 flex flex-wrap justify-center gap-2">
-                          {placed.map((p) => (
-                            <span
-                              key={p.id}
-                              className="rounded-xl bg-white/95 px-2.5 py-1 text-2xl shadow-xs"
-                              title={p.label}
-                            >
-                              {p.emoji}
-                            </span>
-                          ))}
-                        </div>
+                        {placed.length > 0 && (
+                          <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                            {placed.map((p) => (
+                              <span
+                                key={p.id}
+                                className="rounded-lg bg-white/95 px-2 py-0.5 text-xl shadow-xs"
+                                title={p.label}
+                              >
+                                {p.emoji}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -768,18 +822,18 @@ export function MissionArena({
 
             {/* MODE 3: SEQUENCE ORDER */}
             {challenge.mode === 'sequence_order' && challenge.sequencePromptItems && (
-              <div className="flex flex-col gap-5">
-                <div className="rounded-[2rem] border-3 border-[#DFD4BC] bg-[#F4EFE0] p-5 shadow-inner">
-                  <div className="flex flex-wrap items-center justify-center gap-3.5">
+              <div className="flex flex-col justify-center gap-5">
+                <div className="rounded-[1.8rem] border-3 border-[#DFD4BC] bg-[#F4EFE0] p-4 shadow-inner">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
                     {challenge.sequencePromptItems.map((fixedItem, idx) => {
                       if (fixedItem) {
                         return (
                           <div
                             key={`fixed_${idx}`}
-                            className={`game-token-3d flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-[#D9CEB8] border-b-[#BFB195] ${fixedItem.bgClass} p-2 text-center`}
+                            className={`game-token-3d flex h-24 w-24 flex-col items-center justify-center rounded-2xl border-[#D9CEB8] border-b-[#BFB195] ${fixedItem.bgClass} p-2 text-center sm:h-28 sm:w-28`}
                           >
                             <span className="text-4xl leading-none">{fixedItem.emoji}</span>
-                            <span className="mt-1.5 font-display text-xs font-extrabold text-[#1C1917]">
+                            <span className="mt-1 font-display text-xs font-extrabold text-[#1C1917]">
                               {fixedItem.label}
                             </span>
                           </div>
@@ -799,7 +853,7 @@ export function MissionArena({
                           ref={(el) => {
                             seqSlotRefs.current[idx] = el;
                           }}
-                          className={`flex h-32 w-32 flex-col items-center justify-center rounded-3xl border-4 border-dashed p-2 text-center transition-transform duration-150 ${
+                          className={`flex h-28 w-28 flex-col items-center justify-center rounded-3xl border-4 border-dashed p-2 text-center transition-transform duration-150 sm:h-32 sm:w-32 ${
                             placed
                               ? 'border-solid border-[#059669] bg-[#DCFCE7]'
                               : holdingSeqId && isHovered
@@ -843,7 +897,7 @@ export function MissionArena({
                         ref={(el) => {
                           seqPoolRefs.current[item.id] = el;
                         }}
-                        className={`game-token-3d flex min-w-[140px] flex-col items-center justify-center rounded-3xl px-5 py-4 select-none ${
+                        className={`game-token-3d flex min-w-[132px] flex-col items-center justify-center rounded-2xl px-4 py-3 select-none ${
                           isHolding
                             ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
                             : isHovered
@@ -853,8 +907,8 @@ export function MissionArena({
                                 : `border-[#D9CEB8] border-b-[#BFB195] ${item.bgClass}`
                         }`}
                       >
-                        <span className="text-5xl leading-none">{item.emoji}</span>
-                        <span className="mt-2 font-display text-sm font-extrabold text-[#1C1917]">
+                        <span className="text-4xl leading-none">{item.emoji}</span>
+                        <span className="mt-1.5 font-display text-sm font-extrabold text-[#1C1917]">
                           {item.label}
                         </span>
                       </div>
@@ -866,11 +920,11 @@ export function MissionArena({
 
             {/* MODE 4: PINCH CHOICE */}
             {challenge.mode === 'pinch_choice' && (
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col justify-center gap-4">
                 {challenge.telepathyThought && (
                   <div
                     ref={telepathyZoneRef}
-                    className={`rounded-[2rem] border-3 p-5 text-center transition-colors ${
+                    className={`rounded-3xl border-3 px-5 py-3.5 text-center transition-colors ${
                       telepathyRevealed
                         ? 'border-[#EC4899] bg-[#FCE7F3]'
                         : 'border-dashed border-[#EC4899] bg-[#FAF6EB]'
@@ -885,11 +939,11 @@ export function MissionArena({
                       </span>
                     </div>
                     {telepathyRevealed ? (
-                      <p className="mt-2 font-display text-xl font-extrabold text-[#1C1917]">
+                      <p className="mt-1.5 font-display text-lg font-extrabold text-[#1C1917] sm:text-xl">
                         {challenge.telepathyThought}
                       </p>
                     ) : (
-                      <div className="mt-2 flex items-center justify-center gap-3 text-5xl">
+                      <div className="mt-1 flex items-center justify-center gap-3 text-4xl">
                         <span>{challenge.characterEmoji}</span>
                         <span>💭</span>
                       </div>
@@ -898,35 +952,35 @@ export function MissionArena({
                 )}
 
                 {challenge.visualGroups && challenge.visualGroups.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-4 rounded-[2rem] border-2 border-[#EFE7D4] bg-[#FAF6EB] p-5">
+                  <div className="flex flex-wrap items-center justify-center gap-4 rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] px-4 py-3.5">
                     {challenge.visualGroups.map((grp, gIdx) => (
-                      <div key={grp.title} className="flex items-center gap-4">
-                        <div className="rounded-2xl border-2 border-[#DFD4BC] bg-[#FFFDF7] px-5 py-3.5 text-center shadow-xs">
+                      <div key={grp.title} className="flex items-center gap-3.5">
+                        <div className="rounded-2xl border-2 border-[#DFD4BC] bg-[#FFFDF7] px-4 py-2.5 text-center shadow-xs">
                           <p className="font-display text-xs font-extrabold text-[#57534E]">
                             {grp.title}
                           </p>
-                          <div className="mt-2 flex max-w-[260px] flex-wrap justify-center gap-2">
+                          <div className="mt-1.5 flex max-w-[260px] flex-wrap justify-center gap-1.5">
                             {grp.tokens.map((tok, tIdx) => (
                               <div
                                 key={tok.id}
-                                className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-1 ${
+                                className={`relative flex flex-col items-center justify-center rounded-xl px-1.5 py-0.5 ${
                                   tok.crossedOut ? 'bg-[#FEE2E2]/80 opacity-50' : 'bg-[#FFFBF2]'
                                 }`}
                               >
-                                <span className="text-4xl leading-none">{tok.emoji}</span>
+                                <span className="text-3xl leading-none">{tok.emoji}</span>
                                 {tok.crossedOut && (
-                                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl font-black text-[#DC2626]">
+                                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl font-black text-[#DC2626]">
                                     ✕
                                   </span>
                                 )}
                                 {hintTier >= 2 && !tok.crossedOut && (
-                                  <span className="mt-0.5 font-mono text-xs font-bold text-[#14532D] tabular-nums">
+                                  <span className="font-mono text-[11px] font-bold text-[#14532D] tabular-nums">
                                     {tIdx + 1}
                                   </span>
                                 )}
                                 {tok.label.length <= 12 &&
                                   (domain === 'logic' || tok.label === '?') && (
-                                    <span className="mt-1 font-display text-xs font-extrabold text-[#1C1917]">
+                                    <span className="mt-0.5 font-display text-xs font-extrabold text-[#1C1917]">
                                       {tok.label}
                                     </span>
                                   )}
@@ -936,7 +990,7 @@ export function MissionArena({
                         </div>
 
                         {grp.operatorAfter && gIdx < challenge.visualGroups!.length - 1 && (
-                          <span className="font-display text-4xl font-extrabold text-[#14532D]">
+                          <span className="font-display text-3xl font-extrabold text-[#14532D]">
                             {grp.operatorAfter}
                           </span>
                         )}
@@ -961,7 +1015,7 @@ export function MissionArena({
                         ref={(el) => {
                           choiceRefs.current[choice.id] = el;
                         }}
-                        className={`game-token-3d flex min-h-[144px] flex-col items-center justify-center rounded-[1.8rem] p-5 text-center select-none ${
+                        className={`game-token-3d flex min-h-[124px] flex-col items-center justify-center rounded-[1.6rem] p-4 text-center select-none ${
                           isHovered
                             ? '-translate-y-1 scale-105 border-[#EC4899] border-b-[#9D174D] bg-[#FCE7F3] ring-4 ring-[#FBCFE8] shadow-xl'
                             : showHalo
@@ -969,8 +1023,8 @@ export function MissionArena({
                               : 'border-[#D9CEB8] border-b-[#BFB195] bg-[#FAF6EB]'
                         }`}
                       >
-                        <span className="text-5xl leading-none">{choice.emoji}</span>
-                        <span className="mt-2 font-display text-2xl font-extrabold text-[#1C1917]">
+                        <span className="text-4xl leading-none">{choice.emoji}</span>
+                        <span className="mt-1.5 font-display text-xl font-extrabold text-[#1C1917]">
                           {choice.label}
                         </span>
                         {choice.sublabel && (
@@ -986,21 +1040,21 @@ export function MissionArena({
             )}
           </div>
 
-          {/* Bottom Tactile Hint Button + Quiet Hand Status */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          {/* Slim Bottom Helper Bar */}
+          <div className="flex shrink-0 items-center justify-between gap-3 pt-1">
             <button
               ref={hintBtnRef}
               type="button"
               onClick={activateManualHint}
-              className={`game-btn-3d inline-flex items-center gap-2 rounded-2xl border-2 border-[#EAB308] border-b-[#B45309] bg-[#FEF9C3] px-5 py-2.5 font-display text-sm font-extrabold text-[#78350F] cursor-pointer ${
+              className={`game-btn-3d inline-flex items-center gap-1.5 rounded-xl border-2 border-[#EAB308] border-b-[#B45309] bg-[#FEF9C3] px-4 py-1.5 font-display text-xs font-extrabold text-[#78350F] cursor-pointer ${
                 hoveredTargetId === 'btn_hint' ? 'scale-105 ring-4 ring-[#FBCFE8]' : ''
               }`}
             >
-              <Lightbulb className="h-5 w-5" />
+              <Lightbulb className="h-4 w-4" />
               <span>{hintTier === 0 ? 'Dica' : `Mais Dica (${hintTier}/3)`}</span>
             </button>
 
-            <span className="rounded-full bg-[#F4EFE0] px-3.5 py-1 font-mono text-xs font-bold text-[#14532D]">
+            <span className="rounded-full bg-[#F4EFE0] px-3 py-1 font-mono text-xs font-bold text-[#14532D]">
               {tracking.handDetected
                 ? tracking.isPinching
                   ? 'Pinça ativa'
@@ -1008,6 +1062,8 @@ export function MissionArena({
                 : 'Levante a mão para jogar'}
             </span>
           </div>
+            </>
+          )}
         </section>
       </main>
 

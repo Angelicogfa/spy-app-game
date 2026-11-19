@@ -81,55 +81,55 @@ export function GameHud({
   };
 
   return (
-    <header className="mx-auto flex w-full max-w-[1160px] flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-2 sm:px-6">
+    <header className="mx-auto flex w-full max-w-[1160px] shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-5">
       {/* Left Game Controls: Back + Stella Star Counter */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         {onBack && (
           <button
             ref={backButtonRef}
             type="button"
             onClick={onBack}
-            className={`game-btn-3d inline-flex items-center gap-2 rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-3.5 py-2 font-display text-sm font-bold text-[#14532D] hover:bg-[#F6EFE0] cursor-pointer whitespace-nowrap ${
+            className={`game-btn-3d inline-flex h-9 items-center gap-1.5 rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-3 font-display text-xs font-bold text-[#14532D] hover:bg-[#F6EFE0] cursor-pointer whitespace-nowrap ${
               backHovered ? 'scale-105 ring-4 ring-[#FBCFE8] border-[#EC4899]' : ''
             }`}
           >
             {backIcon === 'home' ? (
-              <Home className="h-4 w-4 shrink-0" />
+              <Home className="h-3.5 w-3.5 shrink-0" />
             ) : (
-              <ArrowLeft className="h-4 w-4 shrink-0" />
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
             )}
             {backLabel && <span>{backLabel}</span>}
           </button>
         )}
 
         <div
-          className="flex items-center gap-2 rounded-2xl border-2 border-[#EAB308] border-b-4 border-b-[#CA8A04] bg-[#FEF9C3] px-3.5 py-1.5 shadow-xs"
+          className="flex h-9 items-center gap-1.5 rounded-xl border-2 border-[#EAB308] border-b-4 border-b-[#CA8A04] bg-[#FEF9C3] px-3 shadow-xs"
           title="Total de Estrelas Stella"
         >
-          <Star className="h-5 w-5 fill-[#EAB308] text-[#B45309]" />
-          <span className="font-display text-base font-extrabold text-[#78350F] tabular-nums">
+          <Star className="h-4 w-4 fill-[#EAB308] text-[#B45309]" />
+          <span className="font-display text-sm font-extrabold text-[#78350F] tabular-nums">
             {totalStars}
           </span>
         </div>
       </div>
 
-      {/* Center Slot: Stage Progress Stars or World Title */}
+      {/* Center Slot: Stage Progress Stars or Level Picker */}
       {centerSlot && <div className="flex items-center justify-center">{centerSlot}</div>}
 
       {/* Right Game Utility Icons: Camera mode, Audio, Voice, Hold-for-Parents */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={cycleCameraMode}
-          className="game-btn-3d inline-flex items-center gap-1.5 rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-3 py-2 text-xs font-bold text-[#1C1917] hover:bg-[#F6EFE0] cursor-pointer whitespace-nowrap"
+          className="game-btn-3d inline-flex h-9 items-center gap-1.5 rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-2.5 text-xs font-bold text-[#1C1917] hover:bg-[#F6EFE0] cursor-pointer whitespace-nowrap"
           title="Alternar câmera: Oculta, Só Mão ou Vídeo"
         >
           {camMode === 'hidden' ? (
-            <EyeOff className="h-4 w-4 text-[#14532D]" />
+            <EyeOff className="h-3.5 w-3.5 text-[#14532D]" />
           ) : camMode === 'hand_only' ? (
-            <Hand className="h-4 w-4 text-[#EC4899]" />
+            <Hand className="h-3.5 w-3.5 text-[#EC4899]" />
           ) : (
-            <Video className="h-4 w-4 text-[#B45309]" />
+            <Video className="h-3.5 w-3.5 text-[#B45309]" />
           )}
           <span className="hidden sm:inline">
             {camMode === 'hidden' ? 'Câmera Oculta' : camMode === 'hand_only' ? 'Só Mão' : 'Vídeo'}
@@ -139,7 +139,7 @@ export function GameHud({
         <button
           type="button"
           onClick={onToggleSound}
-          className="game-btn-3d flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#F6EFE0] cursor-pointer"
+          className="game-btn-3d flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#F6EFE0] cursor-pointer"
           title={settings.soundEnabled ? 'Silenciar efeitos sonoros' : 'Ativar efeitos sonoros'}
           aria-label="Alternar som"
         >
@@ -153,7 +153,7 @@ export function GameHud({
         <button
           type="button"
           onClick={onToggleNarration}
-          className={`game-btn-3d inline-flex h-10 items-center gap-1.5 rounded-2xl border-2 px-3 text-xs font-bold cursor-pointer whitespace-nowrap ${
+          className={`game-btn-3d inline-flex h-9 items-center gap-1 rounded-xl border-2 px-2.5 text-xs font-bold cursor-pointer whitespace-nowrap ${
             settings.narrationEnabled
               ? 'border-[#14532D] border-b-[#0D3B1E] bg-[#14532D] text-white'
               : 'border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#57534E]'
@@ -177,13 +177,13 @@ export function GameHud({
             }
           }}
           title="Segure para abrir a Área dos Pais"
-          className="game-btn-3d relative overflow-hidden rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-3 py-2 text-xs font-bold text-[#57534E] hover:text-[#14532D] cursor-pointer select-none whitespace-nowrap"
+          className="game-btn-3d relative h-9 overflow-hidden rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-2.5 text-xs font-bold text-[#57534E] hover:text-[#14532D] cursor-pointer select-none whitespace-nowrap"
         >
           <span
             className="pointer-events-none absolute inset-0 origin-left bg-[#EAB308]/40"
             style={{ transform: `scaleX(${holdProgress / 100})` }}
           />
-          <span className="relative flex items-center gap-1.5">
+          <span className="relative flex items-center gap-1">
             <Lock className="h-3.5 w-3.5" />
             <span>{holdProgress > 0 ? 'Segure...' : 'Pais'}</span>
           </span>

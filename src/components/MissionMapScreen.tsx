@@ -120,7 +120,7 @@ export function MissionMapScreen({
   const camMode = progress.settings.cameraDisplayMode;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <GameHud
         totalStars={progress.totalStellaStars}
         settings={progress.settings}
@@ -133,7 +133,7 @@ export function MissionMapScreen({
         onOpenGuardian={onOpenGuardian}
         centerSlot={
           <div
-            className="flex items-center gap-1.5 rounded-2xl border-2 border-[#D9CEB8] bg-[#FFFDF7] p-1 shadow-xs"
+            className="flex items-center gap-1 rounded-xl border-2 border-[#D9CEB8] bg-[#FFFDF7] p-0.5 shadow-xs"
             role="group"
             aria-label="Nível das fases"
           >
@@ -148,7 +148,7 @@ export function MissionMapScreen({
                   }}
                   type="button"
                   onClick={() => onSelectLevel(item.level)}
-                  className={`flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-display text-xs font-extrabold transition-transform duration-150 whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1 rounded-lg px-3 py-1 font-display text-xs font-extrabold transition-transform duration-150 whitespace-nowrap cursor-pointer ${
                     isSelected
                       ? 'bg-[#14532D] text-[#FEF9C3] shadow-xs'
                       : 'text-[#57534E] hover:text-[#1C1917]'
@@ -163,16 +163,9 @@ export function MissionMapScreen({
         }
       />
 
-      {/* Centered Game Stage Select World */}
-      <main className="mx-auto flex w-full max-w-[1060px] flex-1 flex-col items-center justify-center px-4 py-4 sm:px-6">
-        <div className="mb-5 text-center">
-          <h1 className="font-display text-3xl font-extrabold text-[#14532D] sm:text-4xl">
-            Escolha sua Missão
-          </h1>
-        </div>
-
-        {/* Balanced 5 Stage Portals (centered flex wrap so 3 top + 2 bottom look like a real game map) */}
-        <section className="flex w-full flex-wrap items-stretch justify-center gap-5">
+      {/* Centered Zero-Scroll Stage Select World */}
+      <main className="mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col items-center justify-center px-4 pb-3 pt-1 sm:px-6">
+        <section className="flex w-full flex-wrap items-stretch justify-center gap-4">
           {MISSIONS_META.map((mission, idx) => {
             const bestStars = progress.missionBestStars[`${mission.domain}_${selectedLevel}`] || 0;
             const isHovered = hoveredId === `mission_${mission.domain}`;
@@ -192,14 +185,14 @@ export function MissionMapScreen({
                     onSelectMission(mission.domain);
                   }
                 }}
-                className={`game-token-3d flex w-full max-w-[310px] flex-col overflow-hidden rounded-[1.8rem] bg-[#FFFDF7] text-left cursor-pointer ${
+                className={`game-token-3d flex w-[285px] flex-col overflow-hidden rounded-[1.5rem] bg-[#FFFDF7] text-left cursor-pointer sm:w-[300px] ${
                   isHovered
-                    ? '-translate-y-1.5 scale-[1.04] border-[#EC4899] border-b-[#9D174D] ring-4 ring-[#FBCFE8] shadow-xl'
+                    ? '-translate-y-1 scale-[1.03] border-[#EC4899] border-b-[#9D174D] ring-4 ring-[#FBCFE8] shadow-xl'
                     : 'border-[#D9CEB8] border-b-[#BFB195] shadow-md hover:-translate-y-0.5'
                 }`}
               >
-                {/* Stage Art Portal */}
-                <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#F6EFE0]">
+                {/* Compact 16:9 Stage Art Portal */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#F6EFE0]">
                   <ArtworkImage
                     src={mission.imagePath}
                     alt={mission.title}
@@ -208,46 +201,42 @@ export function MissionMapScreen({
                     className="h-full w-full object-cover"
                   />
 
-                  {/* Stage Number Crest */}
-                  <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#FFFBF2] bg-[#14532D] font-display text-sm font-extrabold text-[#FEF08A] shadow-md">
+                  <div className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#FFFBF2] bg-[#14532D] font-display text-xs font-extrabold text-[#FEF08A] shadow-md">
                     {idx + 1}
                   </div>
 
-                  {/* Hover Pinch Callout */}
                   {isHovered && (
-                    <div className="absolute inset-x-3 bottom-3 rounded-2xl border-2 border-[#FFFBF2] bg-[#EC4899] px-3 py-1.5 text-center font-display text-sm font-extrabold text-white shadow-lg">
+                    <div className="absolute inset-x-2.5 bottom-2 rounded-xl border-2 border-[#FFFBF2] bg-[#EC4899] px-2.5 py-1 text-center font-display text-xs font-extrabold text-white shadow-lg">
                       FAÇA PINÇA PARA JOGAR!
                     </div>
                   )}
                 </div>
 
-                {/* Compact Stage Ribbon + 3 Stella Stars */}
-                <div className="flex flex-1 flex-col justify-between p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[11px] font-bold text-[#1B6B3A]">
-                        {mission.shortTitle}
-                      </span>
-                      <h2 className="font-display text-lg font-extrabold leading-tight text-[#1C1917]">
-                        {mission.title}
-                      </h2>
-                    </div>
+                {/* Compact Title + 3 Stella Stars */}
+                <div className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] font-bold leading-none text-[#1B6B3A]">
+                      {mission.shortTitle}
+                    </span>
+                    <h2 className="mt-0.5 truncate font-display text-sm font-extrabold text-[#1C1917]">
+                      {mission.title}
+                    </h2>
+                  </div>
 
-                    <div
-                      className="flex shrink-0 items-center gap-0.5 pt-1"
-                      aria-label={`${bestStars} de 3 estrelas`}
-                    >
-                      {[1, 2, 3].map((s) => (
-                        <Star
-                          key={s}
-                          className={`h-5 w-5 ${
-                            s <= bestStars
-                              ? 'fill-[#EAB308] text-[#B45309]'
-                              : 'fill-[#EFE9D8] text-[#D9CEB8]'
-                          }`}
-                        />
-                      ))}
-                    </div>
+                  <div
+                    className="flex shrink-0 items-center gap-0.5"
+                    aria-label={`${bestStars} de 3 estrelas`}
+                  >
+                    {[1, 2, 3].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-4 w-4 ${
+                          s <= bestStars
+                            ? 'fill-[#EAB308] text-[#B45309]'
+                            : 'fill-[#EFE9D8] text-[#D9CEB8]'
+                        }`}
+                      />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -255,11 +244,10 @@ export function MissionMapScreen({
           })}
         </section>
 
-        {/* Quiet Hand Status Bar */}
-        <div className="mt-6 rounded-full border border-[#D9CEB8] bg-[#FFFDF7]/90 px-4 py-1.5 font-mono text-xs font-bold text-[#14532D]">
+        <div className="mt-3 rounded-full border border-[#D9CEB8] bg-[#FFFDF7]/90 px-4 py-1 font-mono text-xs font-bold text-[#14532D]">
           {tracking.handDetected
-            ? 'Mão detectada · Aponte na fase e faça pinça!'
-            : 'Levante a mão para a câmera para mover o cursor'}
+            ? 'Mão na tela · Aponte na fase e faça pinça!'
+            : 'Levante a mão para a câmera para escolher uma fase'}
         </div>
       </main>
 

@@ -5,6 +5,7 @@ import { HandCursor } from './components/HandCursor';
 import { MissionArena, MissionCompletionPayload } from './components/MissionArena';
 import { MissionMapScreen } from './components/MissionMapScreen';
 import { MissionVictoryModal } from './components/MissionVictoryModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { TitleScreen } from './components/TitleScreen';
 import { generateMissionChallenges } from './data/missions';
 import { useHandTracking } from './hooks/useHandTracking';
@@ -266,6 +267,8 @@ export default function App() {
         holdingLabel={holdingCursorItem?.label}
         holdingEmoji={holdingCursorItem?.emoji}
       />
+
+      <OfflineIndicator />
     </div>
   );
 }

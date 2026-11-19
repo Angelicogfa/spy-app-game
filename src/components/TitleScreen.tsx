@@ -3,6 +3,7 @@ import { Lock, Play, Star } from 'lucide-react';
 import { HERO_IMAGE_PATH } from '../data/missions';
 import { PlayerProgress } from '../types/game';
 import { ArtworkImage } from './ArtworkImage';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface TitleScreenProps {
   progress: PlayerProgress;
@@ -47,9 +48,9 @@ export function TitleScreen({
   useEffect(() => () => cancelHold(), []);
 
   return (
-    <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden p-4 sm:p-6">
+    <main className="relative flex h-dvh w-full items-center justify-center overflow-hidden p-3 sm:p-5">
       {/* Full-Viewport Game Cabinet Container */}
-      <div className="relative flex h-[calc(100vh-2rem)] max-h-[820px] min-h-[560px] w-full max-w-[1160px] flex-col justify-between overflow-hidden rounded-[2.25rem] border-4 border-[#14532D] border-b-[10px] bg-[#14532D] shadow-2xl sm:h-[calc(100vh-3rem)]">
+      <div className="relative flex h-full max-h-[820px] w-full max-w-[1160px] flex-col justify-between overflow-hidden rounded-[2rem] border-4 border-[#14532D] border-b-[10px] bg-[#14532D] shadow-2xl">
         {/* Full-Bleed Vibrant Anime Backdrop */}
         <div className="absolute inset-0">
           <ArtworkImage
@@ -64,7 +65,7 @@ export function TitleScreen({
         </div>
 
         {/* Top Floating Game Corner HUD */}
-        <div className="relative z-10 flex items-center justify-between gap-4 p-5 sm:p-7">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 p-5 sm:p-7">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-[#EAB308] border-b-4 border-b-[#B45309] bg-[#FEF9C3]/95 px-4 py-2 shadow-md">
             <Star className="h-5 w-5 fill-[#EAB308] text-[#B45309]" />
             <span className="font-display text-lg font-extrabold text-[#78350F] tabular-nums">
@@ -73,30 +74,34 @@ export function TitleScreen({
             <span className="text-xs font-bold text-[#92400E]">Estrelas Stella</span>
           </div>
 
-          <button
-            type="button"
-            onPointerDown={startHold}
-            onPointerUp={cancelHold}
-            onPointerLeave={cancelHold}
-            onPointerCancel={cancelHold}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onOpenGuardian();
-              }
-            }}
-            title="Segure por 1,5 segundo para abrir a Área dos Pais"
-            className="game-btn-3d relative overflow-hidden rounded-2xl border-2 border-white/40 border-b-black/40 bg-black/45 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm hover:bg-black/60 cursor-pointer select-none whitespace-nowrap"
-          >
-            <span
-              className="pointer-events-none absolute inset-0 origin-left bg-[#EAB308]/60"
-              style={{ transform: `scaleX(${holdProgress / 100})` }}
-            />
-            <span className="relative flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5" />
-              <span>{holdProgress > 0 ? 'Segure...' : 'Área dos Pais'}</span>
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <PWAInstallButton variant="title" />
+
+            <button
+              type="button"
+              onPointerDown={startHold}
+              onPointerUp={cancelHold}
+              onPointerLeave={cancelHold}
+              onPointerCancel={cancelHold}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpenGuardian();
+                }
+              }}
+              title="Segure por 1,5 segundo para abrir a Área dos Pais"
+              className="game-btn-3d relative overflow-hidden rounded-2xl border-2 border-white/40 border-b-black/40 bg-black/45 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm hover:bg-black/60 cursor-pointer select-none whitespace-nowrap"
+            >
+              <span
+                className="pointer-events-none absolute inset-0 origin-left bg-[#EAB308]/60"
+                style={{ transform: `scaleX(${holdProgress / 100})` }}
+              />
+              <span className="relative flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                <span>{holdProgress > 0 ? 'Segure...' : 'Área dos Pais'}</span>
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Bottom Center: Game Emblem Title + Big Chunky PLAY Button */}

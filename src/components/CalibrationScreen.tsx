@@ -138,7 +138,7 @@ export function CalibrationScreen({
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <GameHud
         totalStars={totalStars}
         settings={settings}
@@ -150,26 +150,26 @@ export function CalibrationScreen({
         onChangeCameraDisplayMode={onChangeCameraDisplayMode}
         onOpenGuardian={onOpenGuardian}
         centerSlot={
-          <div className="rounded-2xl border-2 border-[#D9CEB8] bg-[#FFFDF7] px-5 py-1.5 font-display text-base font-extrabold text-[#14532D] shadow-xs">
+          <div className="rounded-xl border-2 border-[#D9CEB8] bg-[#FFFDF7] px-4 py-1 font-display text-sm font-extrabold text-[#14532D] shadow-xs">
             Fase 0 · Treino da Mão
           </div>
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[920px] flex-1 flex-col items-center justify-center px-4 py-4 sm:px-6">
+      <main className="mx-auto flex min-h-0 w-full max-w-[980px] flex-1 flex-col items-center justify-center px-4 pb-3 pt-1 sm:px-6">
         {(tracking.status === 'permission_denied' || tracking.status === 'error') && (
-          <div className="game-board-frame w-full max-w-xl p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#FEE2E2] text-[#DC2626]">
-              <Camera className="h-8 w-8" />
+          <div className="game-board-frame w-full max-w-xl p-7 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE2E2] text-[#DC2626]">
+              <Camera className="h-7 w-7" />
             </div>
-            <h2 className="mt-4 font-display text-2xl font-extrabold text-[#1C1917]">
+            <h2 className="mt-3 font-display text-2xl font-extrabold text-[#1C1917]">
               Precisamos ativar a câmera
             </h2>
             <p className="mt-2 text-sm text-[#57534E]">{tracking.errorMessage}</p>
             <button
               type="button"
               onClick={() => onStartCamera()}
-              className="game-btn-3d mt-6 inline-flex items-center gap-2 rounded-2xl border-2 border-[#14532D] border-b-[#0D3B1E] bg-[#14532D] px-6 py-3 font-display text-base font-bold text-white cursor-pointer"
+              className="game-btn-3d mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#14532D] border-b-[#0D3B1E] bg-[#14532D] px-6 py-3 font-display text-base font-bold text-white cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" />
               <span>Tentar Novamente</span>
@@ -180,26 +180,26 @@ export function CalibrationScreen({
         {(tracking.status === 'idle' ||
           tracking.status === 'loading_model' ||
           tracking.status === 'requesting_camera') && (
-          <div className="game-board-frame w-full max-w-lg p-10 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#DCFCE7] text-[#14532D]">
-              <Sparkles className="h-10 w-10 animate-pulse" />
+          <div className="game-board-frame w-full max-w-lg p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#DCFCE7] text-[#14532D]">
+              <Sparkles className="h-8 w-8 animate-pulse" />
             </div>
-            <h2 className="mt-5 font-display text-2xl font-extrabold text-[#14532D]">
+            <h2 className="mt-4 font-display text-2xl font-extrabold text-[#14532D]">
               {tracking.status === 'loading_model'
                 ? 'Preparando a mão mágica...'
                 : 'Liberando a câmera...'}
             </h2>
-            <p className="mt-2 text-sm text-[#57534E]">
+            <p className="mt-1.5 text-sm text-[#57534E]">
               Clique em &ldquo;Permitir&rdquo; se o navegador pedir acesso à câmera.
             </p>
           </div>
         )}
 
         {tracking.status === 'ready' && (
-          <section className="game-board-frame flex w-full flex-col items-center justify-between p-6 text-center sm:p-10">
-            <div className="flex items-center gap-3">
-              {calibrated && <CheckCircle2 className="h-8 w-8 text-[#059669]" />}
-              <h1 className="font-display text-2xl font-extrabold text-[#14532D] sm:text-3xl">
+          <section className="game-board-frame flex h-full max-h-[620px] w-full flex-col items-center justify-between p-5 text-center sm:p-6">
+            <div className="flex items-center gap-2.5">
+              {calibrated && <CheckCircle2 className="h-7 w-7 text-[#059669]" />}
+              <h1 className="font-display text-xl font-extrabold text-[#14532D] sm:text-2xl">
                 {calibrated
                   ? 'Waku waku! Mão pronta para jogar!'
                   : 'Pegue o amendoim e solte na mochila!'}
@@ -207,12 +207,12 @@ export function CalibrationScreen({
             </div>
 
             {!calibrated ? (
-              <div className="my-10 grid w-full max-w-2xl grid-cols-1 items-center gap-10 sm:grid-cols-2">
+              <div className="grid w-full max-w-2xl flex-1 grid-cols-1 items-center gap-8 sm:grid-cols-2">
                 {/* Tactile Giant Peanut Token */}
                 <div className="flex flex-col items-center">
                   <div
                     ref={peanutRef}
-                    className={`game-token-3d flex h-52 w-52 flex-col items-center justify-center rounded-[2rem] ${
+                    className={`game-token-3d flex h-44 w-44 flex-col items-center justify-center rounded-[2rem] sm:h-48 sm:w-48 ${
                       holdingPeanut
                         ? 'scale-90 border-dashed border-[#D9CEB8] bg-[#F6EFE0] opacity-40'
                         : hoveringPeanut
@@ -220,12 +220,12 @@ export function CalibrationScreen({
                           : 'animate-float-gentle border-[#F59E0B] border-b-[#B45309] bg-[#FEF3C7] shadow-md'
                     }`}
                   >
-                    <span className="text-8xl leading-none">🥜</span>
-                    <span className="mt-2 font-display text-lg font-extrabold text-[#78350F]">
+                    <span className="text-7xl leading-none sm:text-8xl">🥜</span>
+                    <span className="mt-1.5 font-display text-base font-extrabold text-[#78350F]">
                       {holdingPeanut ? 'Segurando!' : 'Amendoim'}
                     </span>
                   </div>
-                  <span className="mt-3 text-xs font-bold text-[#57534E]">
+                  <span className="mt-2.5 text-xs font-bold text-[#57534E]">
                     1. Junte os dedos (Pinça)
                   </span>
                 </div>
@@ -234,7 +234,7 @@ export function CalibrationScreen({
                 <div className="flex flex-col items-center">
                   <div
                     ref={bagRef}
-                    className={`flex h-56 w-60 flex-col items-center justify-center rounded-[2rem] border-4 border-dashed transition-transform duration-150 ${
+                    className={`flex h-48 w-52 flex-col items-center justify-center rounded-[2rem] border-4 border-dashed transition-transform duration-150 sm:h-52 sm:w-56 ${
                       holdingPeanut && hoveringBag
                         ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                         : holdingPeanut
@@ -242,22 +242,22 @@ export function CalibrationScreen({
                           : 'border-[#BFB195] bg-[#F4EFE0] shadow-inner'
                     }`}
                   >
-                    <span className="text-8xl leading-none">🎒</span>
-                    <span className="mt-2 font-display text-lg font-extrabold text-[#14532D]">
+                    <span className="text-7xl leading-none sm:text-8xl">🎒</span>
+                    <span className="mt-1.5 font-display text-base font-extrabold text-[#14532D]">
                       Mochila da Anya
                     </span>
                     <span className="mt-0.5 text-xs font-semibold text-[#57534E]">
                       {holdingPeanut && hoveringBag ? 'Solte agora!' : 'Solte aqui'}
                     </span>
                   </div>
-                  <span className="mt-3 text-xs font-bold text-[#57534E]">
+                  <span className="mt-2.5 text-xs font-bold text-[#57534E]">
                     2. Abra os dedos para soltar
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="my-10 flex flex-col items-center">
-                <div className="animate-stella-pop flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#B45309] bg-[#FEF9C3] text-7xl shadow-md">
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <div className="animate-stella-pop flex h-28 w-28 items-center justify-center rounded-full border-4 border-[#B45309] bg-[#FEF9C3] text-6xl shadow-md">
                   ⭐
                 </div>
 
@@ -265,7 +265,7 @@ export function CalibrationScreen({
                   ref={continueBtnRef}
                   type="button"
                   onClick={onCalibrationComplete}
-                  className={`game-btn-3d mt-8 inline-flex items-center gap-3 rounded-3xl border-3 border-[#86EFAC] border-b-[7px] border-b-[#0D3B1E] bg-[#14532D] px-10 py-5 font-display text-2xl font-extrabold text-white cursor-pointer ${
+                  className={`game-btn-3d mt-6 inline-flex items-center gap-3 rounded-3xl border-3 border-[#86EFAC] border-b-[7px] border-b-[#0D3B1E] bg-[#14532D] px-10 py-4 font-display text-2xl font-extrabold text-white cursor-pointer ${
                     hoveringContinue
                       ? 'scale-105 border-[#FBCFE8] border-b-[#9D174D] bg-[#EC4899] ring-4 ring-[#FBCFE8] shadow-xl'
                       : 'hover:bg-[#1B6B3A]'
@@ -277,7 +277,7 @@ export function CalibrationScreen({
               </div>
             )}
 
-            <div className="rounded-full bg-[#F4EFE0] px-4 py-1.5 font-mono text-xs font-bold text-[#14532D]">
+            <div className="rounded-full bg-[#F4EFE0] px-4 py-1 font-mono text-xs font-bold text-[#14532D]">
               {tracking.handDetected
                 ? tracking.isPinching
                   ? 'Mão na tela · Pinça ativa'

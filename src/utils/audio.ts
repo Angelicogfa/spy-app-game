@@ -103,10 +103,67 @@ export function playStellaFanfare(enabled: boolean) {
   });
 }
 
+export interface SpeechActivityState {
+  speaking: boolean;
+  pulse: number;
+  text: string;
+}
+
+type SpeechListener = (state: SpeechActivityState) => void;
+
+const speechListeners = new Set<SpeechListener>();
+let currentSpeechState: SpeechActivityState = { speaking: false, pulse: 0, text: '' };
+let fallbackPulseTimer: number | null = null;
+let fallbackEndTimer: number | null = null;
+
+function notifySpeechListeners(next: SpeechActivityState) {
+  currentSpeechState = next;
+  speechListeners.forEach((cb) => cb(next));
+}
+
+function clearSpeechTimers() {
+  if (fallbackPulseTimer !== null) {
+    window.clearInterval(fallbackPulseTimer);
+    fallbackPulseTimer = null;
+  }
+  if (fallbackEndTimer !== null) {
+    window.clearTimeout(fallbackEndTimer);
+    fallbackEndTimer = null;
+  }
+}
+
+export function subscribeSpeechState(listener: SpeechListener): () => void {
+  speechListeners.add(listener);
+  listener(currentSpeechState);
+  return () => {
+    speechListeners.delete(listener);
+  };
+}
+
 export function speakPtBr(text: string, enabled: boolean) {
-  if (!enabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  if (typeof window === 'undefined') return;
+
+  clearSpeechTimers();
+
+  // Even when audio narration is muted, run a brief calm visual speech animation (~2.2s)
+  // so the character portrait still visibly presents the challenge to the child.
+  if (!enabled || !('speechSynthesis' in window)) {
+    const estimatedMs = Math.min(3400, Math.max(1600, text.length * 42));
+    notifySpeechListeners({ speaking: true, pulse: 1, text });
+    fallbackPulseTimer = window.setInterval(() => {
+      notifySpeechListeners({
+        speaking: true,
+        pulse: currentSpeechState.pulse + 1,
+        text,
+      });
+    }, 260);
+    fallbackEndTimer = window.setTimeout(() => {
+      clearSpeechTimers();
+      notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
+    }, estimatedMs);
     return;
   }
+
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -122,18 +179,65 @@ export function speakPtBr(text: string, enabled: boolean) {
     if (ptVoice) {
       utterance.voice = ptVoice;
     }
+
+    const startVisualPulse = () => {
+      clearSpeechTimers();
+      notifySpeechListeners({ speaking: true, pulse: 1, text });
+      fallbackPulseTimer = window.setInterval(() => {
+        notifySpeechListeners({
+          speaking: true,
+          pulse: currentSpeechState.pulse + 1,
+          text,
+        });
+      }, 240);
+      // Safety cap in case browser speechSynthesis misses onend
+      const safetyMs = Math.min(11000, Math.max(2600, text.length * 90));
+      fallbackEndTimer = window.setTimeout(() => {
+        clearSpeechTimers();
+        notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
+      }, safetyMs);
+    };
+
+    utterance.onstart = () => {
+      startVisualPulse();
+    };
+    utterance.onboundary = () => {
+      notifySpeechListeners({
+        speaking: true,
+        pulse: currentSpeechState.pulse + 1,
+        text,
+      });
+    };
+    utterance.onend = () => {
+      clearSpeechTimers();
+      notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
+    };
+    utterance.onerror = () => {
+      clearSpeechTimers();
+      notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
+    };
+
+    startVisualPulse();
     window.speechSynthesis.speak(utterance);
   } catch {
-    // Gracefully ignore speech synthesis errors in restricted environments
+    clearSpeechTimers();
+    notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
   }
 }
 
 export function stopSpeaking() {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      // Ignore
+  if (typeof window !== 'undefined') {
+    clearSpeechTimers();
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Ignore
+      }
+    }
+    if (currentSpeechState.speaking) {
+      notifySpeechListeners({ speaking: false, pulse: 0, text: '' });
     }
   }
 }
+

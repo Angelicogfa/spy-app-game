@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#14532D" />
+  <polygon
+    points="256,64 307,162 418,162 355,256 418,350 307,350 256,448 205,350 94,350 157,256 94,162 205,162"
+    fill="#FACC15"
+    stroke="#CA8A04"
+    stroke-width="14"
+    stroke-linejoin="round"
+  />
+  <circle cx="256" cy="256" r="112" fill="#FFFBF2" stroke="#D97706" stroke-width="12" />
+  <!-- Friendly raised hand silhouette -->
+  <g fill="#EAB308" stroke="#B45309" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M214 278 C200 252 184 226 196 218 C206 212 220 232 228 248 L216 202 C214 190 228 186 234 198 L244 238 L244 188 C244 176 260 176 260 188 L262 238 L274 194 C278 182 292 188 288 200 L278 248 L296 230 C306 220 320 230 310 246 L286 292 C276 312 240 318 222 296 Z" />
+  </g>
+  <!-- Anya pink sparkle -->
+  <path
+    d="M316 176 L323 196 L343 203 L323 210 L316 230 L309 210 L289 203 L309 196 Z"
+    fill="#EC4899"
+  />
+</svg>

@@ -11,6 +11,7 @@ import {
 import { getMissionMeta, MISSIONS_META } from '../data/missions';
 import { AccessibilitySettings, PlayerProgress } from '../types/game';
 import { exportProgressJson } from '../utils/storage';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface GuardianPanelProps {
   progress: PlayerProgress;
@@ -58,14 +59,18 @@ export function GuardianPanel({
           </h1>
         </div>
 
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl border border-[#14532D] bg-[#14532D] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1B6B3A] whitespace-nowrap cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Voltar ao Jogo</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <PWAInstallButton variant="panel" />
+
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#14532D] bg-[#14532D] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1B6B3A] whitespace-nowrap cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar ao Jogo</span>
+          </button>
+        </div>
       </div>
 
       {/* 4-Column KPI Summary Strip */}
