@@ -16,6 +16,7 @@ interface HandCursorProps {
   visible: boolean;
   holdingLabel?: string | null;
   holdingEmoji?: string | null;
+  dwellProgress?: number;
 }
 
 export function HandCursor({
@@ -23,6 +24,7 @@ export function HandCursor({
   visible,
   holdingLabel,
   holdingEmoji,
+  dwellProgress = 0,
 }: HandCursorProps) {
   const handCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -67,7 +69,9 @@ export function HandCursor({
     ctx.closePath();
     ctx.fillStyle = tracking.isPinching
       ? 'rgba(234, 179, 8, 0.34)'
-      : 'rgba(20, 83, 45, 0.24)';
+      : tracking.isOpenPalm
+        ? 'rgba(5, 150, 105, 0.30)'
+        : 'rgba(20, 83, 45, 0.24)';
     ctx.fill();
 
     // Soft white halo behind finger bones so the hand pops on any background
@@ -85,7 +89,11 @@ export function HandCursor({
     }
 
     // Draw bold finger bones
-    ctx.strokeStyle = tracking.isPinching ? '#B45309' : '#14532D';
+    ctx.strokeStyle = tracking.isPinching
+      ? '#B45309'
+      : tracking.isOpenPalm
+        ? '#059669'
+        : '#14532D';
     ctx.lineWidth = 6.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -129,7 +137,21 @@ export function HandCursor({
     return null;
   }
 
-  const { cursorX, cursorY, isPinching } = tracking;
+  const { cursorX, cursorY, isPinching, isOpenPalm } = tracking;
+  const clampedDwell = Math.max(0, Math.min(1, dwellProgress));
+  const ringRadius = 36;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference * (1 - clampedDwell);
+
+  const badgeText = holdingLabel
+    ? holdingLabel
+    : clampedDwell > 0.05
+      ? 'Selecionando...'
+      : isPinching
+        ? 'Pinça'
+        : isOpenPalm
+          ? 'Mão Aberta'
+          : 'Apontando';
 
   return (
     <div
@@ -148,18 +170,52 @@ export function HandCursor({
           className="pointer-events-none absolute left-1/2 top-1/2 h-[250px] w-[250px] -translate-x-1/2 -translate-y-1/2 opacity-95"
         />
 
+        {/* Smooth Circular Dwell Ring (fills when Modo Só Apontar is active) */}
+        {clampedDwell > 0.02 && (
+          <svg
+            width={84}
+            height={84}
+            viewBox="0 0 84 84"
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90"
+          >
+            <circle
+              cx={42}
+              cy={42}
+              r={ringRadius}
+              fill="none"
+              stroke="rgba(255, 251, 242, 0.9)"
+              strokeWidth={7}
+            />
+            <circle
+              cx={42}
+              cy={42}
+              r={ringRadius}
+              fill="none"
+              stroke="#EC4899"
+              strokeWidth={6}
+              strokeLinecap="round"
+              strokeDasharray={ringCircumference}
+              strokeDashoffset={ringOffset}
+            />
+          </svg>
+        )}
+
         {/* Larger tactile reticle aligned with fingertip */}
         <div
           className={`relative flex items-center justify-center rounded-full border-4 transition-transform duration-100 ${
             isPinching
               ? 'h-16 w-16 scale-95 border-[#B45309] bg-[#EAB308]/40 shadow-lg'
-              : 'h-16 w-16 scale-100 border-[#EC4899] bg-[#EC4899]/22 shadow-md'
+              : isOpenPalm
+                ? 'h-16 w-16 scale-105 border-[#059669] bg-[#DCFCE7]/50 shadow-lg'
+                : 'h-16 w-16 scale-100 border-[#EC4899] bg-[#EC4899]/22 shadow-md'
           }`}
         >
           {holdingEmoji ? (
             <span className="text-4xl leading-none drop-shadow-sm">{holdingEmoji}</span>
           ) : isPinching ? (
             <Hand className="h-7 w-7 text-[#78350F]" strokeWidth={2.5} />
+          ) : isOpenPalm ? (
+            <Hand className="h-7 w-7 text-[#065F46]" strokeWidth={2.5} />
           ) : (
             <Pointer className="h-7 w-7 text-[#9D174D]" strokeWidth={2.5} />
           )}
@@ -170,10 +226,14 @@ export function HandCursor({
           className={`absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-3 py-1 text-sm font-extrabold shadow-md ${
             isPinching
               ? 'bg-[#B45309] text-white'
-              : 'bg-[#14532D] text-[#FFFBF2]'
+              : isOpenPalm
+                ? 'bg-[#059669] text-white'
+                : clampedDwell > 0.05
+                  ? 'bg-[#EC4899] text-white'
+                  : 'bg-[#14532D] text-[#FFFBF2]'
           }`}
         >
-          {holdingLabel ? holdingLabel : isPinching ? 'Pinça' : 'Apontando'}
+          {badgeText}
         </div>
       </div>
     </div>

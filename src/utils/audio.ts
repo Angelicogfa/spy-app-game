@@ -2,8 +2,32 @@
 // Zero external audio dependencies; gentle, cheerful tones crafted for children with ASD.
 
 let audioCtx: AudioContext | null = null;
+let masterGain: GainNode | null = null;
+let globalSoundEnabled = true;
 
-function getAudioContext(): AudioContext | null {
+export function syncAudioPreferences(soundEnabled: boolean, narrationEnabled: boolean) {
+  globalSoundEnabled = soundEnabled;
+  if (masterGain && audioCtx) {
+    masterGain.gain.setValueAtTime(soundEnabled ? 1 : 0, audioCtx.currentTime);
+  }
+  if (!narrationEnabled) {
+    stopSpeaking();
+  }
+}
+
+export function stopAllAudio() {
+  globalSoundEnabled = false;
+  if (masterGain && audioCtx) {
+    try {
+      masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    } catch {
+      // Ignore
+    }
+  }
+  stopSpeaking();
+}
+
+function getAudioContext(): { ctx: AudioContext; out: AudioNode } | null {
   if (typeof window === 'undefined') return null;
   if (!audioCtx) {
     const AudioContextClass =
@@ -11,12 +35,17 @@ function getAudioContext(): AudioContext | null {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(globalSoundEnabled ? 1 : 0, audioCtx.currentTime);
+      masterGain.connect(audioCtx.destination);
     }
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
+  if (!audioCtx || !masterGain) return null;
+  if (audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
   }
-  return audioCtx;
+  masterGain.gain.setValueAtTime(globalSoundEnabled ? 1 : 0, audioCtx.currentTime);
+  return { ctx: audioCtx, out: masterGain };
 }
 
 function playTone(
@@ -26,8 +55,10 @@ function playTone(
   volume = 0.14,
   delay = 0
 ) {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!globalSoundEnabled) return;
+  const audio = getAudioContext();
+  if (!audio) return;
+  const { ctx, out } = audio;
 
   const now = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
@@ -41,7 +72,7 @@ function playTone(
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(out);
 
   osc.start(now);
   osc.stop(now + duration + 0.02);
@@ -103,6 +134,60 @@ export function playStellaFanfare(enabled: boolean) {
   });
 }
 
+export function playTraceConnectNote(stepIndex: number, enabled: boolean) {
+  if (!enabled) return;
+  const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+  const freq = scale[stepIndex % scale.length];
+  playTone(freq, 0.18, 'triangle', 0.13, 0);
+  playTone(freq * 1.5, 0.12, 'sine', 0.06, 0.05);
+}
+
+export function playCloudSweep(enabled: boolean) {
+  if (!enabled) return;
+  playTone(480, 0.14, 'sine', 0.08, 0);
+  playTone(720, 0.18, 'sine', 0.07, 0.06);
+}
+
+export function playHighFiveCelebration(enabled: boolean) {
+  if (!enabled) return;
+  // Soft clapping pop + cheerful ascending triad
+  playTone(280, 0.09, 'triangle', 0.15, 0);
+  playTone(587.33, 0.16, 'triangle', 0.13, 0.07);
+  playTone(783.99, 0.18, 'triangle', 0.13, 0.15);
+  playTone(1174.66, 0.34, 'sine', 0.14, 0.24);
+}
+
+export function playBondBorf(enabled: boolean) {
+  if (!enabled) return;
+  // Gentle, cute warm double "Borf!" tone
+  playTone(195, 0.11, 'triangle', 0.12, 0);
+  playTone(155, 0.13, 'sine', 0.09, 0.09);
+}
+
+export type CharacterVoiceId = 'anya' | 'loid' | 'yor' | 'bond' | 'default';
+
+const VOICE_PROFILES: Record<CharacterVoiceId, { rate: number; pitch: number }> = {
+  anya: { rate: 0.99, pitch: 1.32 },
+  loid: { rate: 0.89, pitch: 0.84 },
+  yor: { rate: 0.92, pitch: 1.13 },
+  bond: { rate: 0.88, pitch: 0.78 },
+  default: { rate: 0.94, pitch: 1.06 },
+};
+
+export function resolveVoiceId(characterName?: string): CharacterVoiceId {
+  if (!characterName) return 'default';
+  const lower = characterName.toLowerCase();
+  if (lower.includes('bond')) return 'bond';
+  if (lower.includes('yor')) return 'yor';
+  if (lower.includes('loid') || lower.includes('twilight') || lower.includes('henderson')) {
+    return 'loid';
+  }
+  if (lower.includes('anya') || lower.includes('becky') || lower.includes('damian')) {
+    return 'anya';
+  }
+  return 'default';
+}
+
 export interface SpeechActivityState {
   speaking: boolean;
   pulse: number;
@@ -140,15 +225,26 @@ export function subscribeSpeechState(listener: SpeechListener): () => void {
   };
 }
 
-export function speakPtBr(text: string, enabled: boolean) {
+export function speakPtBr(
+  text: string,
+  enabled: boolean,
+  voiceId: CharacterVoiceId = 'default'
+) {
   if (typeof window === 'undefined') return;
 
   clearSpeechTimers();
 
-  // Even when audio narration is muted, run a brief calm visual speech animation (~2.2s)
-  // so the character portrait still visibly presents the challenge to the child.
+  // Even when audio narration is muted, ensure speechSynthesis is cancelled cleanly
+  // and run a brief calm visual speech animation so the portrait still presents the prompt.
   if (!enabled || !('speechSynthesis' in window)) {
-    const estimatedMs = Math.min(3400, Math.max(1600, text.length * 42));
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // Ignore
+      }
+    }
+    const estimatedMs = Math.min(3000, Math.max(1400, text.length * 36));
     notifySpeechListeners({ speaking: true, pulse: 1, text });
     fallbackPulseTimer = window.setInterval(() => {
       notifySpeechListeners({
@@ -164,12 +260,17 @@ export function speakPtBr(text: string, enabled: boolean) {
     return;
   }
 
+  if (voiceId === 'bond') {
+    playBondBorf(globalSoundEnabled);
+  }
+
   try {
     window.speechSynthesis.cancel();
+    const profile = VOICE_PROFILES[voiceId] || VOICE_PROFILES.default;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'pt-BR';
-    utterance.rate = 0.94;
-    utterance.pitch = 1.08;
+    utterance.rate = profile.rate;
+    utterance.pitch = profile.pitch;
     utterance.volume = 0.95;
 
     const voices = window.speechSynthesis.getVoices();

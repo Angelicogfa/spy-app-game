@@ -15,6 +15,7 @@ const INITIAL_STATE: HandTrackingState = {
   normX: 0.5,
   normY: 0.5,
   isPinching: false,
+  isOpenPalm: false,
   pinchDistance: 1,
   landmarks: null,
   fps: 0,
@@ -41,6 +42,7 @@ export function useHandTracking(settings: AccessibilitySettings): UseHandTrackin
     initialized: false,
   });
   const isPinchingRef = useRef<boolean>(false);
+  const openPalmFramesRef = useRef<number>(0);
   const lastVideoTimeRef = useRef<number>(-1);
   const frameCounterRef = useRef<{ count: number; lastTs: number; fps: number }>({
     count: 0,
@@ -74,6 +76,7 @@ export function useHandTracking(settings: AccessibilitySettings): UseHandTrackin
     }
     smoothPosRef.current.initialized = false;
     isPinchingRef.current = false;
+    openPalmFramesRef.current = 0;
     updateState({ ...INITIAL_STATE, status: 'idle' });
   }, [updateState]);
 
@@ -144,6 +147,29 @@ export function useHandTracking(settings: AccessibilitySettings): UseHandTrackin
               isPinchingRef.current = false;
             }
 
+            // Detect Open Palm ("Toca Aqui / Olá"): 4 main fingers clearly extended and not pinching
+            const distFromWrist = (lm: { x: number; y: number }) =>
+              Math.hypot(lm.x - wrist.x, lm.y - wrist.y);
+            const fingerPairs: [number, number][] = [
+              [8, 6],   // Index tip vs PIP
+              [12, 10], // Middle tip vs PIP
+              [16, 14], // Ring tip vs PIP
+              [20, 18], // Pinky tip vs PIP
+            ];
+            let extendedCount = 0;
+            for (const [tipIdx, pipIdx] of fingerPairs) {
+              if (distFromWrist(hand[tipIdx]) > distFromWrist(hand[pipIdx]) * 1.12) {
+                extendedCount += 1;
+              }
+            }
+            const rawOpenPalm = !isPinchingRef.current && extendedCount >= 4 && normalizedPinch > startThreshold + 0.14;
+            if (rawOpenPalm) {
+              openPalmFramesRef.current = Math.min(6, openPalmFramesRef.current + 1);
+            } else {
+              openPalmFramesRef.current = Math.max(0, openPalmFramesRef.current - 2);
+            }
+            const isOpenPalm = openPalmFramesRef.current >= 2;
+
             const mirroredLandmarks: NormalizedLandmark[] = hand.map((lm) => ({
               x: 1 - lm.x,
               y: lm.y,
@@ -159,12 +185,14 @@ export function useHandTracking(settings: AccessibilitySettings): UseHandTrackin
               cursorX: smoothPosRef.current.x * window.innerWidth,
               cursorY: smoothPosRef.current.y * window.innerHeight,
               isPinching: isPinchingRef.current,
+              isOpenPalm,
               pinchDistance: normalizedPinch,
               landmarks: mirroredLandmarks,
               fps: frameCounterRef.current.fps,
             });
           } else {
             isPinchingRef.current = false;
+            openPalmFramesRef.current = 0;
             if (stateRef.current.handDetected || stateRef.current.status !== 'ready') {
               updateState({
                 ...stateRef.current,
@@ -172,6 +200,7 @@ export function useHandTracking(settings: AccessibilitySettings): UseHandTrackin
                 errorMessage: null,
                 handDetected: false,
                 isPinching: false,
+                isOpenPalm: false,
                 landmarks: null,
                 fps: frameCounterRef.current.fps,
               });

@@ -19,7 +19,9 @@ export type InteractionMode =
   | 'drag_count'
   | 'drag_buckets'
   | 'sequence_order'
-  | 'pinch_choice';
+  | 'pinch_choice'
+  | 'trace_connect'
+  | 'open_palm_reveal';
 
 export type CameraStatus =
   | 'idle'
@@ -46,12 +48,16 @@ export interface HandTrackingState {
   normX: number;
   normY: number;
   isPinching: boolean;
+  /** True when fingers are clearly spread open (used for High-Five & Cloud Sweep) */
+  isOpenPalm: boolean;
   pinchDistance: number;
   landmarks: NormalizedLandmark[] | null;
   fps: number;
 }
 
 export type CameraDisplayMode = 'hidden' | 'hand_only' | 'video';
+
+export type GestureControlMode = 'pinch' | 'dwell';
 
 export interface AccessibilitySettings {
   /** Normalized pinch start threshold (default 0.36; higher = easier to pinch) */
@@ -62,6 +68,8 @@ export interface AccessibilitySettings {
   narrationEnabled: boolean;
   /** Controls webcam preview visibility to prevent self-video distraction */
   cameraDisplayMode: CameraDisplayMode;
+  /** 'pinch' = point + pinch, 'dwell' = point & hold ~1.2s without pinching */
+  gestureControlMode: GestureControlMode;
 }
 
 export interface VisualToken {
@@ -108,6 +116,22 @@ export interface SequenceSlotItem {
   bgClass: string;
 }
 
+export interface TraceNode {
+  id: string;
+  label: string;
+  emoji?: string;
+  /** Percentage position inside the tracing canvas (10..90) */
+  xPct: number;
+  yPct: number;
+}
+
+export interface CloudRevealItem {
+  id: string;
+  xPct: number;
+  yPct: number;
+  size: 'md' | 'lg';
+}
+
 export interface MissionChallenge {
   id: string;
   domain: MissionDomain;
@@ -137,8 +161,17 @@ export interface MissionChallenge {
   sequencePromptItems?: (SequenceSlotItem | null)[];
   sequenceExpectedOrder?: string[];
   sequencePool?: SequenceSlotItem[];
-  /** For pinch_choice */
+  /** For pinch_choice and open_palm_reveal */
   choices?: ChoiceOption[];
+  /** For trace_connect (air finger dot-to-dot tracing) */
+  traceNodes?: TraceNode[];
+  traceShapeTitle?: string;
+  traceAccentColor?: string;
+  /** For open_palm_reveal (sweep clouds away with open hand to uncover clue) */
+  cloudsToClear?: CloudRevealItem[];
+  revealedClueEmoji?: string;
+  revealedClueTitle?: string;
+  revealedClueText?: string;
 }
 
 export interface MissionMetadata {
@@ -190,4 +223,25 @@ export interface PlayerProgress {
   recentSessions: SessionRecord[];
   settings: AccessibilitySettings;
   hasCompletedCalibration: boolean;
+  /** Current chapter index (0..4) in "Um Dia na Família Forger" story campaign */
+  campaignStepIndex: number;
+  /** How many full 5-chapter days have been completed */
+  campaignCompletedCount: number;
+}
+
+export type ProfileAvatarId = 'anya' | 'loid' | 'yor' | 'bond';
+
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  avatarId: ProfileAvatarId;
+  createdAt: string;
+  lastPlayedAt: string;
+  progress: PlayerProgress;
+}
+
+export interface ProfilesStore {
+  version: number;
+  activeProfileId: string | null;
+  profiles: PlayerProfile[];
 }

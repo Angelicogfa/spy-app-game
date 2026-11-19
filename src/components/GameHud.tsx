@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   EyeOff,
   Hand,
   Home,
-  Lock,
   MessageSquare,
   Star,
   Video,
@@ -12,6 +10,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { AccessibilitySettings, CameraDisplayMode } from '../types/game';
+import { GuardianHoldButton } from './GuardianHoldButton';
 
 interface GameHudProps {
   totalStars: number;
@@ -42,37 +41,6 @@ export function GameHud({
   onChangeCameraDisplayMode,
   onOpenGuardian,
 }: GameHudProps) {
-  const [holdProgress, setHoldProgress] = useState(0);
-  const holdTimerRef = useRef<number | null>(null);
-  const holdStartRef = useRef<number>(0);
-
-  const HOLD_MS = 1300;
-
-  const cancelHold = () => {
-    if (holdTimerRef.current !== null) {
-      cancelAnimationFrame(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    setHoldProgress(0);
-  };
-
-  const startHold = () => {
-    holdStartRef.current = performance.now();
-    const tick = (now: number) => {
-      const pct = Math.min(100, ((now - holdStartRef.current) / HOLD_MS) * 100);
-      setHoldProgress(pct);
-      if (pct >= 100) {
-        cancelHold();
-        onOpenGuardian();
-      } else {
-        holdTimerRef.current = requestAnimationFrame(tick);
-      }
-    };
-    holdTimerRef.current = requestAnimationFrame(tick);
-  };
-
-  useEffect(() => () => cancelHold(), []);
-
   const camMode = settings.cameraDisplayMode;
   const cycleCameraMode = () => {
     const next: CameraDisplayMode =
@@ -116,7 +84,7 @@ export function GameHud({
       {/* Center Slot: Stage Progress Stars or Level Picker */}
       {centerSlot && <div className="flex items-center justify-center">{centerSlot}</div>}
 
-      {/* Right Game Utility Icons: Camera mode, Audio, Voice, Hold-for-Parents */}
+      {/* Right Game Utility Icons: Camera mode, Audio, Voice, Parents */}
       <div className="flex items-center gap-1.5">
         <button
           type="button"
@@ -139,11 +107,23 @@ export function GameHud({
         <button
           type="button"
           onClick={onToggleSound}
-          className="game-btn-3d flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#F6EFE0] cursor-pointer"
-          title={settings.soundEnabled ? 'Silenciar efeitos sonoros' : 'Ativar efeitos sonoros'}
-          aria-label="Alternar som"
+          className={`game-btn-3d flex h-9 w-9 items-center justify-center rounded-xl border-2 cursor-pointer ${
+            !settings.soundEnabled && !settings.narrationEnabled
+              ? 'border-[#DC2626] border-b-[#991B1B] bg-[#FEE2E2] text-[#DC2626]'
+              : 'border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#F6EFE0]'
+          }`}
+          title={
+            settings.soundEnabled || settings.narrationEnabled
+              ? 'Silenciar tudo (Mudo)'
+              : 'Reativar som e voz'
+          }
+          aria-label={
+            settings.soundEnabled || settings.narrationEnabled
+              ? 'Silenciar tudo'
+              : 'Reativar som e voz'
+          }
         >
-          {settings.soundEnabled ? (
+          {settings.soundEnabled || settings.narrationEnabled ? (
             <Volume2 className="h-4 w-4 text-[#14532D]" />
           ) : (
             <VolumeX className="h-4 w-4 text-[#DC2626]" />
@@ -158,36 +138,17 @@ export function GameHud({
               ? 'border-[#14532D] border-b-[#0D3B1E] bg-[#14532D] text-white'
               : 'border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#57534E]'
           }`}
-          title="Ativar ou desativar narração em voz alta"
+          title={
+            settings.narrationEnabled
+              ? 'Desativar narração em voz alta'
+              : 'Ativar narração em voz alta'
+          }
         >
           <MessageSquare className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{settings.narrationEnabled ? 'Voz' : 'Mudo'}</span>
+          <span className="hidden sm:inline">{settings.narrationEnabled ? 'Voz' : 'Sem Voz'}</span>
         </button>
 
-        <button
-          type="button"
-          onPointerDown={startHold}
-          onPointerUp={cancelHold}
-          onPointerLeave={cancelHold}
-          onPointerCancel={cancelHold}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onOpenGuardian();
-            }
-          }}
-          title="Segure para abrir a Área dos Pais"
-          className="game-btn-3d relative h-9 overflow-hidden rounded-xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] px-2.5 text-xs font-bold text-[#57534E] hover:text-[#14532D] cursor-pointer select-none whitespace-nowrap"
-        >
-          <span
-            className="pointer-events-none absolute inset-0 origin-left bg-[#EAB308]/40"
-            style={{ transform: `scaleX(${holdProgress / 100})` }}
-          />
-          <span className="relative flex items-center gap-1">
-            <Lock className="h-3.5 w-3.5" />
-            <span>{holdProgress > 0 ? 'Segure...' : 'Pais'}</span>
-          </span>
-        </button>
+        <GuardianHoldButton variant="hud" onOpenGuardian={onOpenGuardian} />
       </div>
     </header>
   );

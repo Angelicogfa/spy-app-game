@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, Camera, CheckCircle2, RefreshCw, Sparkles } from 'lucide-react';
+import { useDwellSelect } from '../hooks/useDwellSelect';
 import {
   AccessibilitySettings,
   CameraDisplayMode,
@@ -17,6 +18,7 @@ interface CalibrationScreenProps {
   onStartCamera: () => Promise<void>;
   onCalibrationComplete: () => void;
   onHoldingChange: (item: { label: string; emoji: string } | null) => void;
+  onDwellProgressChange?: (pct: number) => void;
   onToggleSound: () => void;
   onToggleNarration: () => void;
   onChangeCameraDisplayMode: (mode: CameraDisplayMode) => void;
@@ -32,12 +34,15 @@ export function CalibrationScreen({
   onStartCamera,
   onCalibrationComplete,
   onHoldingChange,
+  onDwellProgressChange,
   onToggleSound,
   onToggleNarration,
   onChangeCameraDisplayMode,
   onBackHome,
   onOpenGuardian,
 }: CalibrationScreenProps) {
+  const isDwellMode = settings.gestureControlMode === 'dwell';
+
   const [holdingPeanut, setHoldingPeanut] = useState(false);
   const [calibrated, setCalibrated] = useState(false);
   const [hoveringPeanut, setHoveringPeanut] = useState(false);
@@ -48,6 +53,75 @@ export function CalibrationScreen({
   const bagRef = useRef<HTMLDivElement | null>(null);
   const continueBtnRef = useRef<HTMLButtonElement | null>(null);
   const prevPinchRef = useRef(false);
+  const holdingSourceRef = useRef<'hand' | 'pointer' | null>(null);
+
+  const pickupPeanut = useCallback(
+    (source: 'hand' | 'pointer' = 'hand') => {
+      holdingSourceRef.current = source;
+      setHoldingPeanut(true);
+      onHoldingChange({ label: 'Amendoim', emoji: '🥜' });
+      playPinchGrab(settings.soundEnabled);
+    },
+    [onHoldingChange, settings.soundEnabled]
+  );
+
+  const dropPeanutInBag = useCallback(() => {
+    holdingSourceRef.current = null;
+    setHoldingPeanut(false);
+    onHoldingChange(null);
+    setCalibrated(true);
+    playChallengeSuccess(settings.soundEnabled);
+    speakPtBr(
+      isDwellMode
+        ? 'Waku waku! Muito bem! Agora aponte e pare no botão verde para começar as missões!'
+        : 'Waku waku! Muito bem! Faça pinça no botão verde para começar as missões!',
+      settings.narrationEnabled,
+      'anya'
+    );
+  }, [onHoldingChange, settings.soundEnabled, settings.narrationEnabled, isDwellMode]);
+
+  const handleDwellTrigger = useCallback(
+    (targetId: string) => {
+      if (targetId === 'peanut' && !calibrated && !holdingPeanut) {
+        pickupPeanut();
+      } else if (targetId === 'bag' && !calibrated && holdingPeanut) {
+        dropPeanutInBag();
+      } else if (targetId === 'continue' && calibrated) {
+        playPinchGrab(settings.soundEnabled);
+        onCalibrationComplete();
+      }
+    },
+    [
+      calibrated,
+      holdingPeanut,
+      pickupPeanut,
+      dropPeanutInBag,
+      settings.soundEnabled,
+      onCalibrationComplete,
+    ]
+  );
+
+  const activeDwellTarget = !calibrated
+    ? !holdingPeanut && hoveringPeanut
+      ? 'peanut'
+      : holdingPeanut && hoveringBag
+        ? 'bag'
+        : null
+    : hoveringContinue
+      ? 'continue'
+      : null;
+
+  useDwellSelect({
+    enabled:
+      isDwellMode &&
+      tracking.status === 'ready' &&
+      tracking.handDetected &&
+      activeDwellTarget !== null,
+    hoveredId: activeDwellTarget,
+    durationMs: 1100,
+    onProgress: onDwellProgressChange,
+    onTrigger: handleDwellTrigger,
+  });
 
   useEffect(() => {
     if (tracking.status === 'idle') {
@@ -55,25 +129,35 @@ export function CalibrationScreen({
     }
   }, [tracking.status, onStartCamera]);
 
+  const narrationEnabledRef = useRef(settings.narrationEnabled);
+  narrationEnabledRef.current = settings.narrationEnabled;
+
   useEffect(() => {
     if (tracking.status === 'ready' && !calibrated) {
       speakPtBr(
-        'Treino secreto! Aponte para o amendoim, faça pinça para pegar e solte na mochila da Anya.',
-        settings.narrationEnabled
+        isDwellMode
+          ? 'Treino secreto! Aponte e pare o dedo no amendoim para pegar, depois pare na mochila da Anya.'
+          : 'Treino secreto! Aponte para o amendoim, faça pinça para pegar e solte na mochila da Anya.',
+        narrationEnabledRef.current,
+        'anya'
       );
     }
-  }, [tracking.status, calibrated, settings.narrationEnabled]);
+  }, [tracking.status, calibrated, isDwellMode]);
 
   useEffect(() => {
-    return () => onHoldingChange(null);
-  }, [onHoldingChange]);
+    return () => {
+      onHoldingChange(null);
+      onDwellProgressChange?.(0);
+    };
+  }, [onHoldingChange, onDwellProgressChange]);
 
   useEffect(() => {
     if (tracking.status !== 'ready' || !tracking.handDetected) {
       setHoveringPeanut(false);
       setHoveringBag(false);
       setHoveringContinue(false);
-      if (holdingPeanut) {
+      if (holdingPeanut && holdingSourceRef.current === 'hand') {
+        holdingSourceRef.current = null;
         setHoldingPeanut(false);
         onHoldingChange(null);
       }
@@ -104,20 +188,16 @@ export function CalibrationScreen({
       setHoveringBag(overBag);
 
       if (!holdingPeanut && overPeanut && justPinched) {
-        setHoldingPeanut(true);
-        onHoldingChange({ label: 'Amendoim', emoji: '🥜' });
-        playPinchGrab(settings.soundEnabled);
-      } else if (holdingPeanut && justReleased) {
-        setHoldingPeanut(false);
-        onHoldingChange(null);
+        pickupPeanut();
+      } else if (holdingPeanut && !isDwellMode && justReleased) {
         if (overBag) {
-          setCalibrated(true);
-          playChallengeSuccess(settings.soundEnabled);
-          speakPtBr(
-            'Waku waku! Muito bem! Faça pinça no botão verde para começar as missões!',
-            settings.narrationEnabled
-          );
+          dropPeanutInBag();
+        } else {
+          setHoldingPeanut(false);
+          onHoldingChange(null);
         }
+      } else if (holdingPeanut && isDwellMode && justPinched && overBag) {
+        dropPeanutInBag();
       }
     } else {
       const overContinue = isInside(continueBtnRef.current, 18);
@@ -131,8 +211,10 @@ export function CalibrationScreen({
     tracking,
     calibrated,
     holdingPeanut,
+    isDwellMode,
+    pickupPeanut,
+    dropPeanutInBag,
     settings.soundEnabled,
-    settings.narrationEnabled,
     onCalibrationComplete,
     onHoldingChange,
   ]);
@@ -202,7 +284,7 @@ export function CalibrationScreen({
               <h1 className="font-display text-xl font-extrabold text-[#14532D] sm:text-2xl">
                 {calibrated
                   ? 'Waku waku! Mão pronta para jogar!'
-                  : 'Pegue o amendoim e solte na mochila!'}
+                  : 'Pegue o amendoim e leve até a mochila!'}
               </h1>
             </div>
 
@@ -212,7 +294,8 @@ export function CalibrationScreen({
                 <div className="flex flex-col items-center">
                   <div
                     ref={peanutRef}
-                    className={`game-token-3d flex h-44 w-44 flex-col items-center justify-center rounded-[2rem] sm:h-48 sm:w-48 ${
+                    onClick={() => !holdingPeanut && pickupPeanut('pointer')}
+                    className={`game-token-3d flex h-44 w-44 flex-col items-center justify-center rounded-[2rem] cursor-pointer sm:h-48 sm:w-48 ${
                       holdingPeanut
                         ? 'scale-90 border-dashed border-[#D9CEB8] bg-[#F6EFE0] opacity-40'
                         : hoveringPeanut
@@ -226,7 +309,7 @@ export function CalibrationScreen({
                     </span>
                   </div>
                   <span className="mt-2.5 text-xs font-bold text-[#57534E]">
-                    1. Junte os dedos (Pinça)
+                    {isDwellMode ? '1. Pare o dedo no amendoim' : '1. Junte os dedos (Pinça)'}
                   </span>
                 </div>
 
@@ -234,7 +317,8 @@ export function CalibrationScreen({
                 <div className="flex flex-col items-center">
                   <div
                     ref={bagRef}
-                    className={`flex h-48 w-52 flex-col items-center justify-center rounded-[2rem] border-4 border-dashed transition-transform duration-150 sm:h-52 sm:w-56 ${
+                    onClick={() => holdingPeanut && dropPeanutInBag()}
+                    className={`flex h-48 w-52 flex-col items-center justify-center rounded-[2rem] border-4 border-dashed transition-transform duration-150 cursor-pointer sm:h-52 sm:w-56 ${
                       holdingPeanut && hoveringBag
                         ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                         : holdingPeanut
@@ -247,11 +331,15 @@ export function CalibrationScreen({
                       Mochila da Anya
                     </span>
                     <span className="mt-0.5 text-xs font-semibold text-[#57534E]">
-                      {holdingPeanut && hoveringBag ? 'Solte agora!' : 'Solte aqui'}
+                      {holdingPeanut && hoveringBag
+                        ? isDwellMode
+                          ? 'Segure aqui...'
+                          : 'Solte agora!'
+                        : 'Coloque aqui'}
                     </span>
                   </div>
                   <span className="mt-2.5 text-xs font-bold text-[#57534E]">
-                    2. Abra os dedos para soltar
+                    {isDwellMode ? '2. Pare o dedo na mochila' : '2. Abra os dedos para soltar'}
                   </span>
                 </div>
               </div>
@@ -279,9 +367,13 @@ export function CalibrationScreen({
 
             <div className="rounded-full bg-[#F4EFE0] px-4 py-1 font-mono text-xs font-bold text-[#14532D]">
               {tracking.handDetected
-                ? tracking.isPinching
-                  ? 'Mão na tela · Pinça ativa'
-                  : 'Mão na tela · Apontando'
+                ? tracking.isOpenPalm
+                  ? 'Mão na tela · Mão aberta'
+                  : tracking.isPinching
+                    ? 'Mão na tela · Pinça ativa'
+                    : isDwellMode
+                      ? 'Modo Só Apontar · Pare no alvo'
+                      : 'Mão na tela · Apontando'
                 : 'Levante sua mão aberta em frente à câmera'}
             </div>
           </section>

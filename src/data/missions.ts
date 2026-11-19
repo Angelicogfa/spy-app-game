@@ -276,43 +276,51 @@ function generateMathChallenges(level: DifficultyLevel): MissionChallenge[] {
       ],
     },
     {
-      id: `math_compare_${level}`,
+      id: `math_trace_stars_${level}`,
       domain: 'math',
       level,
-      mode: 'pinch_choice',
-      characterName: 'Anya e Becky',
+      mode: 'trace_connect',
+      characterName: 'Anya',
       characterEmoji: '⭐',
-      sceneTag: 'Recreio na Academia Eden',
-      prompt: 'Qual bandeja tem MAIS estrelas douradas?',
-      narrationText: 'Observe as duas bandejas com atenção e faça pinça na bandeja que tem mais estrelas douradas.',
-      hintText: `Compare os números: a bandeja com ${compLeft} tem mais do que a bandeja com ${compRight}.`,
-      successMessage: `Muito bem! ${compLeft} é maior que ${compRight}!`,
-      visualGroups: [
-        {
-          title: `Bandeja A (${compLeft})`,
-          tokens: makeTokens(compLeft, '⭐', 'estrelaA'),
-        },
-        {
-          title: `Bandeja B (${compRight})`,
-          tokens: makeTokens(compRight, '⭐', 'estrelaB'),
-        },
-      ],
-      choices: shuffle([
-        {
-          id: 'tray_a',
-          label: `Bandeja A (${compLeft})`,
-          sublabel: 'Tem mais estrelas',
-          emoji: '🌟',
-          isCorrect: true,
-        },
-        {
-          id: 'tray_b',
-          label: `Bandeja B (${compRight})`,
-          sublabel: 'Tem menos estrelas',
-          emoji: '✨',
-          isCorrect: false,
-        },
-      ]),
+      sceneTag: 'Trilha Numérica no Ar',
+      prompt:
+        level === 1
+          ? 'Passe o dedo no ar ligando os números na ordem: 1 → 2 → 3!'
+          : level === 2
+            ? 'Ligue os números no ar na ordem certinha: 1 → 2 → 3 → 4!'
+            : 'Complete a constelação da Anya ligando de 1 até 5 no ar!',
+      narrationText:
+        level === 1
+          ? 'Agora desenhe no ar! Leve seu dedo indicador do número 1, depois 2, até o número 3!'
+          : level === 2
+            ? 'Desenhe no ar ligando os números em ordem: 1, 2, 3 e 4!'
+            : 'Ligue a estrela completa no ar passando o dedo pelos números de 1 até 5!',
+      hintText: 'Aponte primeiro na bolinha brilhante do número 1 e siga a linha pontilhada!',
+      successMessage: 'Waku waku! Você desenhou a trilha dos números no ar!',
+      traceShapeTitle:
+        level === 1 ? 'Triângulo de Amendoins' : level === 2 ? 'Quadrado da Academia' : 'Estrela Stella',
+      traceAccentColor: '#EC4899',
+      traceNodes:
+        level === 1
+          ? [
+              { id: 't1', label: '1', emoji: '🥜', xPct: 22, yPct: 72 },
+              { id: 't2', label: '2', emoji: '🥜', xPct: 50, yPct: 22 },
+              { id: 't3', label: '3', emoji: '⭐', xPct: 78, yPct: 72 },
+            ]
+          : level === 2
+            ? [
+                { id: 't1', label: '1', emoji: '🥜', xPct: 22, yPct: 26 },
+                { id: 't2', label: '2', emoji: '🥜', xPct: 78, yPct: 26 },
+                { id: 't3', label: '3', emoji: '🥜', xPct: 78, yPct: 74 },
+                { id: 't4', label: '4', emoji: '⭐', xPct: 22, yPct: 74 },
+              ]
+            : [
+                { id: 't1', label: '1', emoji: '⭐', xPct: 50, yPct: 16 },
+                { id: 't2', label: '2', emoji: '⭐', xPct: 80, yPct: 40 },
+                { id: 't3', label: '3', emoji: '⭐', xPct: 68, yPct: 80 },
+                { id: 't4', label: '4', emoji: '⭐', xPct: 32, yPct: 80 },
+                { id: 't5', label: '5', emoji: '🌟', xPct: 20, yPct: 40 },
+              ],
     },
   ];
 }
@@ -655,15 +663,22 @@ function generateEmotionsChallenges(level: DifficultyLevel): MissionChallenge[] 
       id: `emo_pencil_share_${level}`,
       domain: 'emotions',
       level,
-      mode: 'pinch_choice',
-      characterName: 'Colega da Turma',
+      mode: 'open_palm_reveal',
+      characterName: 'Anya',
       characterEmoji: '✏️',
-      sceneTag: 'Prova de Desenho na Eden',
-      prompt: 'Um colega esqueceu o lápis de cor e ficou triste. Qual atitude merece Estrela Stella?',
-      narrationText: 'Um amigo da sala esqueceu o lápis e ficou triste. Qual escolha mostra empatia e amizade?',
-      telepathyThought: '“Esqueci meu estojo em casa... não vou conseguir colorir meu desenho.”',
-      hintText: 'Emprestar um lápis quando temos sobrando é um grande gesto de amizade!',
+      sceneTag: 'Nuvem de Pensamento na Eden',
+      prompt: 'Passe a mão aberta para limpar as nuvens, descobrir o segredo do colega e escolher como ajudar!',
+      narrationText: 'Abra bem a mãozinha e passe sobre as nuvens para descobrir por que o colega está triste!',
+      hintText: 'Passe a mão aberta nas nuvens primeiro. Depois escolha emprestar um lápis com sorriso!',
       successMessage: 'Estrela Stella de empatia! Compartilhar faz amigos felizes!',
+      cloudsToClear: [
+        { id: 'ec1', xPct: 28, yPct: 48, size: 'lg' },
+        { id: 'ec2', xPct: 50, yPct: 44, size: 'lg' },
+        { id: 'ec3', xPct: 72, yPct: 52, size: 'lg' },
+      ],
+      revealedClueEmoji: '✏️😢',
+      revealedClueTitle: 'Pensamento revelado!',
+      revealedClueText: '“Esqueci meu estojo em casa... não vou conseguir colorir meu desenho.”',
       choices: shuffle([
         {
           id: 'lend',
@@ -741,24 +756,23 @@ function generateLogicChallenges(level: DifficultyLevel): MissionChallenge[] {
       id: `logic_bond_rain_${level}`,
       domain: 'logic',
       level,
-      mode: 'pinch_choice',
+      mode: 'open_palm_reveal',
       characterName: 'Bond',
       characterEmoji: '🔮',
       sceneTag: 'Visão do Futuro do Bond',
-      prompt: 'Bond viu nuvens escuras e pingos de chuva caindo! O que a família precisa levar?',
-      narrationText: 'Bond teve uma visão do futuro! Nuvens escuras estão chegando com chuva. Qual objeto devemos pegar?',
-      hintText: 'Quando chove lá fora, usamos algo para não molhar a cabeça!',
-      successMessage: 'Borf! Graças à previsão do Bond, ninguém ficou molhado!',
-      visualGroups: [
-        {
-          title: 'Visão do Bond',
-          tokens: [
-            { id: 'c1', label: 'Nuvem', emoji: '☁️' },
-            { id: 'c2', label: 'Chuva', emoji: '🌧️' },
-            { id: 'c3', label: 'Próximo?', emoji: '❓' },
-          ],
-        },
+      prompt: 'Passe a mão aberta para espalhar a neblina e descobrir a visão do Bond!',
+      narrationText: 'Borf! Passe sua mão bem aberta pelas nuvens para limpar a neblina e ver o que o Bond previu!',
+      hintText: 'Espalhe todas as nuvens com a mão aberta. Quando chove, usamos guarda-chuva!',
+      successMessage: 'Borf! Graças à visão do Bond, ninguém ficou molhado!',
+      cloudsToClear: [
+        { id: 'bc1', xPct: 26, yPct: 45, size: 'lg' },
+        { id: 'bc2', xPct: 48, yPct: 38, size: 'lg' },
+        { id: 'bc3', xPct: 70, yPct: 48, size: 'lg' },
+        { id: 'bc4', xPct: 50, yPct: 64, size: 'md' },
       ],
+      revealedClueEmoji: '☁️ 🌧️ 💧',
+      revealedClueTitle: 'Visão do Bond revelada!',
+      revealedClueText: 'Nuvens de chuva estão chegando! O que a família Forger deve levar?',
       choices: shuffle([
         { id: 'umbrella', label: 'Guarda-chuva', sublabel: 'Protege da chuva', emoji: '☂️', isCorrect: true },
         { id: 'sunglasses', label: 'Óculos de sol', sublabel: 'Para dias de sol', emoji: '🕶️', isCorrect: false },
@@ -766,20 +780,40 @@ function generateLogicChallenges(level: DifficultyLevel): MissionChallenge[] {
       ]),
     },
     {
-      id: `logic_wise_2_${level}`,
+      id: `logic_wise_trace_${level}`,
       domain: 'logic',
       level,
-      mode: 'sequence_order',
-      characterName: 'Yor e Loid',
-      characterEmoji: '🧩',
-      sceneTag: 'Cofre de Símbolos',
-      prompt: 'Mais um código secreto! Qual símbolo completa a sequência no final?',
-      narrationText: 'Observe a ordem das peças do cofre e arraste o símbolo que completa o padrão.',
-      hintText: 'Compare o início da fileira com o final para descobrir qual símbolo está faltando.',
-      successMessage: 'Cofre aberto com elegância! Padrão resolvido!',
-      sequencePromptItems: pattern2Prompt,
-      sequenceExpectedOrder: [pattern2Answer],
-      sequencePool: shuffle([rose, hat, star]),
+      mode: 'trace_connect',
+      characterName: 'Agente Twilight',
+      characterEmoji: '🕵️',
+      sceneTag: 'Código Luminoso da WISE',
+      prompt: 'Ligue os pontos do Código Secreto da WISE no ar seguindo a ordem das letras!',
+      narrationText: 'Agente, use seu dedo indicador no ar para conectar os pontos brilhantes na ordem certa e abrir o cofre secreto!',
+      hintText: 'Comece no ponto iluminado com o anel amarelo e deslize o dedo até o próximo!',
+      successMessage: 'Cofre da WISE aberto com elegância! Traçado perfeito!',
+      traceShapeTitle: level === 1 ? 'Sinal da WISE' : level === 2 ? 'Diamante Secreto' : 'Escudo da Eden',
+      traceAccentColor: '#14532D',
+      traceNodes:
+        level === 1
+          ? [
+              { id: 'w1', label: 'A', emoji: '🔑', xPct: 20, yPct: 55 },
+              { id: 'w2', label: 'B', emoji: '🔎', xPct: 50, yPct: 22 },
+              { id: 'w3', label: 'C', emoji: '⭐', xPct: 80, yPct: 55 },
+            ]
+          : level === 2
+            ? [
+                { id: 'w1', label: 'A', emoji: '🔑', xPct: 50, yPct: 18 },
+                { id: 'w2', label: 'B', emoji: '🔎', xPct: 80, yPct: 50 },
+                { id: 'w3', label: 'C', emoji: '🧩', xPct: 50, yPct: 82 },
+                { id: 'w4', label: 'D', emoji: '⭐', xPct: 20, yPct: 50 },
+              ]
+            : [
+                { id: 'w1', label: 'A', emoji: '🔑', xPct: 20, yPct: 30 },
+                { id: 'w2', label: 'B', emoji: '🔎', xPct: 50, yPct: 18 },
+                { id: 'w3', label: 'C', emoji: '🧩', xPct: 80, yPct: 30 },
+                { id: 'w4', label: 'D', emoji: '🛡️', xPct: 68, yPct: 78 },
+                { id: 'w5', label: 'E', emoji: '⭐', xPct: 32, yPct: 78 },
+              ],
     },
     {
       id: `logic_numbers_${level}`,

@@ -2,12 +2,16 @@ import {
   AccessibilitySettings,
   DifficultyLevel,
   MissionDomain,
+  PlayerProfile,
   PlayerProgress,
+  ProfileAvatarId,
+  ProfilesStore,
   SessionRecord,
   SkillStats,
 } from '../types/game';
 
-const STORAGE_KEY = 'operacao_stella_progress_v1';
+const LEGACY_STORAGE_KEY = 'operacao_stella_progress_v1';
+const PROFILES_STORAGE_KEY = 'operacao_stella_profiles_v2';
 
 const createEmptySkillStats = (): SkillStats => ({
   completedChallenges: 0,
@@ -23,6 +27,7 @@ export const DEFAULT_SETTINGS: AccessibilitySettings = {
   soundEnabled: true,
   narrationEnabled: true,
   cameraDisplayMode: 'hidden',
+  gestureControlMode: 'pinch',
 };
 
 export function createInitialProgress(): PlayerProgress {
@@ -45,42 +50,107 @@ export function createInitialProgress(): PlayerProgress {
     recentSessions: [],
     settings: { ...DEFAULT_SETTINGS },
     hasCompletedCalibration: false,
+    campaignStepIndex: 0,
+    campaignCompletedCount: 0,
   };
 }
 
-export function loadProgress(): PlayerProgress {
-  if (typeof window === 'undefined') return createInitialProgress();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createInitialProgress();
-    const parsed = JSON.parse(raw) as Partial<PlayerProgress>;
-    const initial = createInitialProgress();
-    return {
-      ...initial,
-      ...parsed,
-      skillStats: {
-        ...initial.skillStats,
-        ...(parsed.skillStats || {}),
-      },
-      gestureTelemetry: {
-        ...initial.gestureTelemetry,
-        ...(parsed.gestureTelemetry || {}),
-      },
-      settings: {
-        ...initial.settings,
-        ...(parsed.settings || {}),
-      },
-      recentSessions: Array.isArray(parsed.recentSessions) ? parsed.recentSessions : [],
-    };
-  } catch {
-    return createInitialProgress();
-  }
+export function normalizeProgress(parsed?: Partial<PlayerProgress> | null): PlayerProgress {
+  const initial = createInitialProgress();
+  if (!parsed || typeof parsed !== 'object') return initial;
+  return {
+    ...initial,
+    ...parsed,
+    skillStats: {
+      ...initial.skillStats,
+      ...(parsed.skillStats || {}),
+    },
+    gestureTelemetry: {
+      ...initial.gestureTelemetry,
+      ...(parsed.gestureTelemetry || {}),
+    },
+    settings: {
+      ...initial.settings,
+      ...(parsed.settings || {}),
+    },
+    recentSessions: Array.isArray(parsed.recentSessions) ? parsed.recentSessions : [],
+    campaignStepIndex:
+      typeof parsed.campaignStepIndex === 'number'
+        ? Math.max(0, Math.min(4, parsed.campaignStepIndex))
+        : 0,
+    campaignCompletedCount:
+      typeof parsed.campaignCompletedCount === 'number' ? parsed.campaignCompletedCount : 0,
+  };
 }
 
-export function saveProgress(progress: PlayerProgress): void {
+export function createPlayerProfile(
+  name: string,
+  avatarId: ProfileAvatarId,
+  initialProgress?: Partial<PlayerProgress>
+): PlayerProfile {
+  const now = new Date().toISOString();
+  return {
+    id: `prof_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    name: name.trim() || 'Agente Estrela',
+    avatarId,
+    createdAt: now,
+    lastPlayedAt: now,
+    progress: normalizeProgress(initialProgress),
+  };
+}
+
+export function loadProfilesStore(): ProfilesStore {
+  if (typeof window === 'undefined') {
+    return { version: 2, activeProfileId: null, profiles: [] };
+  }
+
+  try {
+    const rawV2 = window.localStorage.getItem(PROFILES_STORAGE_KEY);
+    if (rawV2) {
+      const parsed = JSON.parse(rawV2) as Partial<ProfilesStore>;
+      const profiles: PlayerProfile[] = Array.isArray(parsed.profiles)
+        ? parsed.profiles.map((p) => ({
+            id: p.id || `prof_${Math.random().toString(36).slice(2, 8)}`,
+            name: typeof p.name === 'string' && p.name.trim() ? p.name.trim() : 'Agente Estrela',
+            avatarId: (['anya', 'loid', 'yor', 'bond'].includes(p.avatarId)
+              ? p.avatarId
+              : 'anya') as ProfileAvatarId,
+            createdAt: p.createdAt || new Date().toISOString(),
+            lastPlayedAt: p.lastPlayedAt || new Date().toISOString(),
+            progress: normalizeProgress(p.progress),
+          }))
+        : [];
+      const activeProfileId =
+        parsed.activeProfileId && profiles.some((p) => p.id === parsed.activeProfileId)
+          ? parsed.activeProfileId
+          : profiles[0]?.id || null;
+      return { version: 2, activeProfileId, profiles };
+    }
+
+    // Migrate legacy v1 progress seamlessly into the first profile so no child loses stars
+    const rawV1 = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (rawV1) {
+      const parsedV1 = JSON.parse(rawV1) as Partial<PlayerProgress>;
+      const migrated = createPlayerProfile('Agente Estrela', 'anya', parsedV1);
+      const store: ProfilesStore = {
+        version: 2,
+        activeProfileId: migrated.id,
+        profiles: [migrated],
+      };
+      saveProfilesStore(store);
+      return store;
+    }
+  } catch {
+    // Fallback to empty store
+  }
+
+  return { version: 2, activeProfileId: null, profiles: [] };
+}
+
+export function saveProfilesStore(store: ProfilesStore): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    window.localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(store));
   } catch {
     // Ignore storage quota errors
   }
@@ -97,6 +167,7 @@ export function recordMissionCompletion(
     durationSec: number;
     successfulPinches: number;
     earlyDrops: number;
+    advanceCampaign?: boolean;
   }
 ): { updated: PlayerProgress; starsEarned: number } {
   const {
@@ -108,6 +179,7 @@ export function recordMissionCompletion(
     durationSec,
     successfulPinches,
     earlyDrops,
+    advanceCampaign = false,
   } = params;
 
   // Always reward effort generously for ASD encouragement (1 to 3 Stella Stars)
@@ -141,6 +213,17 @@ export function recordMissionCompletion(
     successfulPinches,
   };
 
+  let nextCampaignStep = current.campaignStepIndex ?? 0;
+  let nextCampaignCompleted = current.campaignCompletedCount ?? 0;
+  if (advanceCampaign) {
+    if (nextCampaignStep >= 4) {
+      nextCampaignStep = 0;
+      nextCampaignCompleted += 1;
+    } else {
+      nextCampaignStep += 1;
+    }
+  }
+
   const updated: PlayerProgress = {
     ...current,
     totalStellaStars: current.totalStellaStars + starDelta,
@@ -160,22 +243,58 @@ export function recordMissionCompletion(
       ),
     },
     recentSessions: [session, ...current.recentSessions].slice(0, 30),
+    campaignStepIndex: nextCampaignStep,
+    campaignCompletedCount: nextCampaignCompleted,
   };
 
-  saveProgress(updated);
   return { updated, starsEarned };
 }
 
-export function exportProgressJson(progress: PlayerProgress): void {
-  const blob = new Blob([JSON.stringify(progress, null, 2)], {
+export function exportProfileJson(profile: PlayerProfile): void {
+  const payload = {
+    type: 'operacao_stella_profile_export',
+    exportedAt: new Date().toISOString(),
+    profile,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json',
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
+  const safeName = profile.name.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'jogador';
   link.href = url;
-  link.download = `relatorio-operacao-stella-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `sessao-${safeName}-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+export function parseImportedProfileJson(rawText: string): PlayerProfile | null {
+  try {
+    const parsed = JSON.parse(rawText) as Record<string, unknown>;
+    // Format 1: New exported profile bundle
+    if (parsed && parsed.profile && typeof parsed.profile === 'object') {
+      const p = parsed.profile as Partial<PlayerProfile>;
+      const avatarId = (['anya', 'loid', 'yor', 'bond'].includes(String(p.avatarId))
+        ? p.avatarId
+        : 'anya') as ProfileAvatarId;
+      return createPlayerProfile(
+        typeof p.name === 'string' && p.name.trim() ? p.name : 'Sessão Importada',
+        avatarId,
+        p.progress
+      );
+    }
+    // Format 2: Legacy raw PlayerProgress JSON
+    if (parsed && typeof parsed.totalStellaStars === 'number') {
+      return createPlayerProfile(
+        'Sessão Importada',
+        'anya',
+        parsed as Partial<PlayerProgress>
+      );
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
