@@ -40,7 +40,7 @@ jobs:
 
       - name: Build de produção (Vite)
         env:
-          VITE_BASE_PATH: /spy-app/
+          VITE_BASE_PATH: /spy-app-game/
         run: npm run build
 
       - name: Enviar artefato do Pages
