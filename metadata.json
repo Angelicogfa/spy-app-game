@@ -1,0 +1,6 @@
+{
+  "name": "Operação Stella: Missões da Família",
+  "description": "Jogo web educativo inspirado em Spy x Family com rastreamento de gestos das mãos via webcam (MediaPipe) para crianças com autismo resolverem missões contextualizadas de matemática, rotina, emoções, lógica e classificação.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

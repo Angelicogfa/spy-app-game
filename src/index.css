@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-cream-bg: #FFFBF2;
+  --color-cream-surface: #F6EFE0;
+  --color-eden-dark: #14532D;
+  --color-eden-mid: #1B6B3A;
+  --color-eden-light: #DCFCE7;
+  --color-anya-pink: #EC4899;
+  --color-anya-soft: #FCE7F3;
+  --color-yor-crimson: #DC2626;
+  --color-stella-gold: #EAB308;
+  --color-stella-deep: #B45309;
+  --color-ink: #1C1917;
+  --color-ink-muted: #57534E;
+  --color-parchment-border: #D9CEB8;
+}
+
+@layer base {
+  html,
+  body {
+    font-family: var(--font-sans);
+    background-color: #FFFBF2;
+    color: #1C1917;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes floatGentle {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(95vh) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stellaPop {
+  0% {
+    transform: scale(0.5) rotate(-18deg);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.12) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hintHalo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3.2s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+
+.animate-stella-pop {
+  animation: stellaPop 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-confetti {
+  animation: confettiFall 2.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate-hint-halo {
+  animation: hintHalo 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-gentle,
+  .animate-stella-pop,
+  .animate-confetti,
+  .animate-hint-halo {
+    animation: none !important;
+    transition: none !important;
+  }
+}
