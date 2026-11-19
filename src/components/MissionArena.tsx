@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Lightbulb, Sparkles, Star } from 'lucide-react';
 import { MISSION_BRIEFINGS } from '../data/characters';
 import { getMissionMeta } from '../data/missions';
+import { useHandAutoScroll } from '../hooks/useHandAutoScroll';
 import {
   AccessibilitySettings,
   CameraDisplayMode,
@@ -105,6 +106,13 @@ export function MissionArena({
   const backBtnRef = useRef<HTMLButtonElement | null>(null);
   const introStartBtnRef = useRef<HTMLButtonElement | null>(null);
   const replayAudioBtnRef = useRef<HTMLButtonElement | null>(null);
+  const arenaScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useHandAutoScroll({
+    containerRef: arenaScrollRef,
+    tracking,
+    speedPxPerSec: 230,
+  });
 
   const prevPinchRef = useRef<boolean>(false);
   const lastHoveredRef = useRef<string | null>(null);
@@ -637,8 +645,11 @@ export function MissionArena({
                 </div>
               )}
 
-              {/* MAXIMIZED PLAYABLE GAME SURFACE */}
-              <div className="flex min-h-0 flex-1 flex-col justify-center py-2.5">
+              {/* MAXIMIZED PLAYABLE GAME SURFACE (zero-scroll on desktop, hand + touch scrollable on small screens) */}
+              <div
+                ref={arenaScrollRef}
+                className="flex min-h-0 flex-1 flex-col justify-start overflow-y-auto overscroll-contain py-2.5 md:justify-center"
+              >
             {/* MODE 1: DRAG COUNT */}
             {challenge.mode === 'drag_count' && challenge.dropZones && (
               <div className="grid h-full grid-cols-1 items-center gap-5 md:grid-cols-12">

@@ -205,7 +205,7 @@ export function MissionIntroCutscene({
   }, [domain, words.length]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto overscroll-contain py-2 sm:justify-center">
       <div className="relative flex w-full max-w-2xl flex-col items-center overflow-hidden rounded-[2rem] border-3 border-[#DFD4BC] bg-[#FAF6EB] p-5 text-center shadow-inner sm:p-6">
         {/* Soft Mission Scene Banner Accent */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 overflow-hidden opacity-22">

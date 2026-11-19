@@ -94,7 +94,7 @@ export function MissionVictoryModal({
   }, [tracking, settings.soundEnabled, nextMission.domain, onNextMission, onReplay, onBackToMap]);
 
   return (
-    <main className="relative flex h-dvh w-full items-center justify-center overflow-hidden px-4 py-4">
+    <main className="relative flex min-h-dvh w-full items-center justify-center overflow-y-auto px-4 py-4">
       {/* Gentle Confetti Celebration */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         {Array.from({ length: 20 }).map((_, idx) => (

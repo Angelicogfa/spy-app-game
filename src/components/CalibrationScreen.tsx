@@ -156,7 +156,7 @@ export function CalibrationScreen({
         }
       />
 
-      <main className="mx-auto flex min-h-0 w-full max-w-[980px] flex-1 flex-col items-center justify-center px-4 pb-3 pt-1 sm:px-6">
+      <main className="mx-auto flex min-h-0 w-full max-w-[980px] flex-1 flex-col items-center justify-start overflow-y-auto overscroll-contain px-4 pb-3 pt-1 sm:justify-center sm:px-6">
         {(tracking.status === 'permission_denied' || tracking.status === 'error') && (
           <div className="game-board-frame w-full max-w-xl p-7 text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE2E2] text-[#DC2626]">
@@ -196,7 +196,7 @@ export function CalibrationScreen({
         )}
 
         {tracking.status === 'ready' && (
-          <section className="game-board-frame flex h-full max-h-[620px] w-full flex-col items-center justify-between p-5 text-center sm:p-6">
+          <section className="game-board-frame flex w-full flex-col items-center justify-between gap-4 p-5 text-center sm:h-full sm:max-h-[620px] sm:p-6">
             <div className="flex items-center gap-2.5">
               {calibrated && <CheckCircle2 className="h-7 w-7 text-[#059669]" />}
               <h1 className="font-display text-xl font-extrabold text-[#14532D] sm:text-2xl">
