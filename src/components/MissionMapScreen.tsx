@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { EyeOff, Hand, Star, Video, Volume2, VolumeX } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { MISSIONS_META } from '../data/missions';
 import {
   CameraDisplayMode,
@@ -11,6 +11,7 @@ import {
 import { playPinchGrab, playSoftHover, speakPtBr } from '../utils/audio';
 import { ArtworkImage } from './ArtworkImage';
 import { CameraMirror } from './CameraMirror';
+import { GameHud } from './GameHud';
 
 interface MissionMapScreenProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -20,13 +21,16 @@ interface MissionMapScreenProps {
   onSelectLevel: (level: DifficultyLevel) => void;
   onSelectMission: (domain: MissionDomain) => void;
   onToggleSound: () => void;
+  onToggleNarration: () => void;
   onChangeCameraDisplayMode: (mode: CameraDisplayMode) => void;
+  onBackHome: () => void;
+  onOpenGuardian: () => void;
 }
 
-const LEVELS: { level: DifficultyLevel; label: string; detail: string }[] = [
-  { level: 1, label: 'Nível 1 · Iniciante', detail: '1 a 5' },
-  { level: 2, label: 'Nível 2 · Agente', detail: '1 a 10' },
-  { level: 3, label: 'Nível 3 · Stella', detail: '1 a 20' },
+const LEVELS: { level: DifficultyLevel; label: string; stars: number }[] = [
+  { level: 1, label: 'Nível 1', stars: 1 },
+  { level: 2, label: 'Nível 2', stars: 2 },
+  { level: 3, label: 'Nível 3', stars: 3 },
 ];
 
 export function MissionMapScreen({
@@ -37,7 +41,10 @@ export function MissionMapScreen({
   onSelectLevel,
   onSelectMission,
   onToggleSound,
+  onToggleNarration,
   onChangeCameraDisplayMode,
+  onBackHome,
+  onOpenGuardian,
 }: MissionMapScreenProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -47,12 +54,11 @@ export function MissionMapScreen({
 
   useEffect(() => {
     speakPtBr(
-      'Escolha uma missão secreta! Aponte para um cartão e faça pinça para começar.',
+      'Escolha uma missão! Aponte e faça pinça na fase que você quer jogar.',
       progress.settings.narrationEnabled
     );
   }, [progress.settings.narrationEnabled]);
 
-  // Hand gesture hit-testing for level tabs and mission cards
   useEffect(() => {
     if (tracking.status !== 'ready' || !tracking.handDetected) {
       setHoveredId(null);
@@ -109,43 +115,27 @@ export function MissionMapScreen({
         onSelectMission(matchedMission);
       }
     }
-  }, [
-    tracking,
-    progress.settings.soundEnabled,
-    onSelectLevel,
-    onSelectMission,
-  ]);
+  }, [tracking, progress.settings.soundEnabled, onSelectLevel, onSelectMission]);
 
   const camMode = progress.settings.cameraDisplayMode;
-  const cycleCameraMode = () => {
-    const next: CameraDisplayMode =
-      camMode === 'hidden' ? 'hand_only' : camMode === 'hand_only' ? 'video' : 'hidden';
-    onChangeCameraDisplayMode(next);
-  };
 
   return (
-    <main className="mx-auto max-w-[1140px] px-6 py-7">
-      {/* Centered Header Toolbar */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#57534E]">
-            <span>Mapa de Missões</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono text-[#B45309] tabular-nums">
-              {progress.totalStellaStars} Estrelas Stella conquistadas
-            </span>
-          </div>
-          <h1 className="mt-1 font-display text-3xl font-extrabold text-[#14532D]">
-            Escolha sua Missão Secreta
-          </h1>
-        </div>
-
-        {/* Difficulty Selector + Quick Audio & Camera Visibility Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
+    <div className="flex min-h-screen flex-col">
+      <GameHud
+        totalStars={progress.totalStellaStars}
+        settings={progress.settings}
+        backLabel="Início"
+        backIcon="home"
+        onBack={onBackHome}
+        onToggleSound={onToggleSound}
+        onToggleNarration={onToggleNarration}
+        onChangeCameraDisplayMode={onChangeCameraDisplayMode}
+        onOpenGuardian={onOpenGuardian}
+        centerSlot={
           <div
-            className="flex items-center gap-1 rounded-xl border border-[#D9CEB8] bg-[#F6EFE0] p-1"
+            className="flex items-center gap-1.5 rounded-2xl border-2 border-[#D9CEB8] bg-[#FFFDF7] p-1 shadow-xs"
             role="group"
-            aria-label="Nível de dificuldade"
+            aria-label="Nível das fases"
           >
             {LEVELS.map((item) => {
               const isSelected = selectedLevel === item.level;
@@ -158,142 +148,121 @@ export function MissionMapScreen({
                   }}
                   type="button"
                   onClick={() => onSelectLevel(item.level)}
-                  className={`rounded-lg px-3.5 py-2 text-xs font-bold transition-transform duration-150 whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1 rounded-xl px-3.5 py-1.5 font-display text-xs font-extrabold transition-transform duration-150 whitespace-nowrap cursor-pointer ${
                     isSelected
-                      ? 'bg-[#14532D] text-[#FFFBF2] shadow-xs'
-                      : 'text-[#44403C] hover:text-[#1C1917]'
+                      ? 'bg-[#14532D] text-[#FEF9C3] shadow-xs'
+                      : 'text-[#57534E] hover:text-[#1C1917]'
                   } ${isHovered ? 'scale-105 ring-2 ring-[#EC4899]' : ''}`}
                 >
-                  {item.label}
+                  <span>{'★'.repeat(item.stars)}</span>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </div>
+        }
+      />
 
-          <button
-            type="button"
-            onClick={cycleCameraMode}
-            className="flex items-center gap-1.5 rounded-xl border border-[#D9CEB8] bg-white px-3 py-2.5 text-xs font-semibold text-[#1C1917] hover:bg-[#F6EFE0] whitespace-nowrap cursor-pointer"
-            title="Alternar exibição da câmera: Oculta, Só Mão ou Vídeo"
-          >
-            {camMode === 'hidden' ? (
-              <EyeOff className="h-4 w-4 text-[#14532D]" />
-            ) : camMode === 'hand_only' ? (
-              <Hand className="h-4 w-4 text-[#EC4899]" />
-            ) : (
-              <Video className="h-4 w-4 text-[#B45309]" />
-            )}
-            <span>
-              {camMode === 'hidden'
-                ? 'Câmera: Oculta'
-                : camMode === 'hand_only'
-                  ? 'Câmera: Só Mão'
-                  : 'Câmera: Vídeo'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleSound}
-            className="flex items-center gap-1.5 rounded-xl border border-[#D9CEB8] bg-white px-3 py-2.5 text-xs font-semibold text-[#1C1917] hover:bg-[#F6EFE0] whitespace-nowrap cursor-pointer"
-            title={progress.settings.soundEnabled ? 'Silenciar sons' : 'Ativar sons'}
-          >
-            {progress.settings.soundEnabled ? (
-              <Volume2 className="h-4 w-4 text-[#14532D]" />
-            ) : (
-              <VolumeX className="h-4 w-4 text-[#DC2626]" />
-            )}
-            <span>{progress.settings.soundEnabled ? 'Som' : 'Mudo'}</span>
-          </button>
+      {/* Centered Game Stage Select World */}
+      <main className="mx-auto flex w-full max-w-[1060px] flex-1 flex-col items-center justify-center px-4 py-4 sm:px-6">
+        <div className="mb-5 text-center">
+          <h1 className="font-display text-3xl font-extrabold text-[#14532D] sm:text-4xl">
+            Escolha sua Missão
+          </h1>
         </div>
-      </div>
 
-      {/* Centered 5 Mission Cards Grid */}
-      <section className="mx-auto grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {MISSIONS_META.map((mission) => {
-          const bestStars = progress.missionBestStars[`${mission.domain}_${selectedLevel}`] || 0;
-          const isHovered = hoveredId === `mission_${mission.domain}`;
+        {/* Balanced 5 Stage Portals (centered flex wrap so 3 top + 2 bottom look like a real game map) */}
+        <section className="flex w-full flex-wrap items-stretch justify-center gap-5">
+          {MISSIONS_META.map((mission, idx) => {
+            const bestStars = progress.missionBestStars[`${mission.domain}_${selectedLevel}`] || 0;
+            const isHovered = hoveredId === `mission_${mission.domain}`;
 
-          return (
-            <div
-              key={mission.domain}
-              ref={(el) => {
-                cardRefs.current[mission.domain] = el;
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelectMission(mission.domain);
-                }
-              }}
-              className={`group flex flex-col overflow-hidden rounded-3xl border-2 bg-white text-left transition-transform duration-150 ${
-                isHovered
-                  ? 'scale-[1.03] border-[#EC4899] ring-4 ring-[#FBCFE8] shadow-xl'
-                  : 'border-[#D9CEB8] shadow-sm'
-              }`}
-            >
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#F6EFE0]">
-                <ArtworkImage
-                  src={mission.imagePath}
-                  alt={mission.title}
-                  fallbackTitle={mission.shortTitle}
-                  fallbackGradient={mission.fallbackGradient}
-                  className="h-full w-full object-cover"
-                />
-                {isHovered && (
-                  <div className="absolute inset-x-3 bottom-3 rounded-xl bg-[#EC4899] px-3 py-1.5 text-center font-display text-sm font-bold text-white shadow-md">
-                    Faça Pinça para Iniciar!
+            return (
+              <div
+                key={mission.domain}
+                ref={(el) => {
+                  cardRefs.current[mission.domain] = el;
+                }}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectMission(mission.domain)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectMission(mission.domain);
+                  }
+                }}
+                className={`game-token-3d flex w-full max-w-[310px] flex-col overflow-hidden rounded-[1.8rem] bg-[#FFFDF7] text-left cursor-pointer ${
+                  isHovered
+                    ? '-translate-y-1.5 scale-[1.04] border-[#EC4899] border-b-[#9D174D] ring-4 ring-[#FBCFE8] shadow-xl'
+                    : 'border-[#D9CEB8] border-b-[#BFB195] shadow-md hover:-translate-y-0.5'
+                }`}
+              >
+                {/* Stage Art Portal */}
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#F6EFE0]">
+                  <ArtworkImage
+                    src={mission.imagePath}
+                    alt={mission.title}
+                    fallbackTitle={mission.shortTitle}
+                    fallbackGradient={mission.fallbackGradient}
+                    className="h-full w-full object-cover"
+                  />
+
+                  {/* Stage Number Crest */}
+                  <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#FFFBF2] bg-[#14532D] font-display text-sm font-extrabold text-[#FEF08A] shadow-md">
+                    {idx + 1}
                   </div>
-                )}
-              </div>
 
-              <div className="flex flex-1 flex-col justify-between p-5">
-                <div>
-                  <div className="flex items-center justify-between gap-2 text-xs text-[#57534E]">
-                    <span className="font-semibold text-[#14532D]">{mission.skillLabel}</span>
-                    <div className="flex items-center gap-0.5" aria-label={`${bestStars} de 3 estrelas`}>
-                      {[1, 2, 3].map((idx) => (
+                  {/* Hover Pinch Callout */}
+                  {isHovered && (
+                    <div className="absolute inset-x-3 bottom-3 rounded-2xl border-2 border-[#FFFBF2] bg-[#EC4899] px-3 py-1.5 text-center font-display text-sm font-extrabold text-white shadow-lg">
+                      FAÇA PINÇA PARA JOGAR!
+                    </div>
+                  )}
+                </div>
+
+                {/* Compact Stage Ribbon + 3 Stella Stars */}
+                <div className="flex flex-1 flex-col justify-between p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold text-[#1B6B3A]">
+                        {mission.shortTitle}
+                      </span>
+                      <h2 className="font-display text-lg font-extrabold leading-tight text-[#1C1917]">
+                        {mission.title}
+                      </h2>
+                    </div>
+
+                    <div
+                      className="flex shrink-0 items-center gap-0.5 pt-1"
+                      aria-label={`${bestStars} de 3 estrelas`}
+                    >
+                      {[1, 2, 3].map((s) => (
                         <Star
-                          key={idx}
-                          className={`h-4 w-4 ${
-                            idx <= bestStars
+                          key={s}
+                          className={`h-5 w-5 ${
+                            s <= bestStars
                               ? 'fill-[#EAB308] text-[#B45309]'
-                              : 'text-[#D9CEB8]'
+                              : 'fill-[#EFE9D8] text-[#D9CEB8]'
                           }`}
                         />
                       ))}
                     </div>
                   </div>
-
-                  <h2 className="mt-1.5 font-display text-xl font-extrabold text-[#1C1917]">
-                    {mission.title}
-                  </h2>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[#57534E]">
-                    {mission.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-[#EFE7D4] pt-3 text-xs font-medium text-[#57534E]">
-                  <span>{mission.characterGuide}</span>
-                  <span className="font-semibold text-[#EC4899]">Pinça para jogar →</span>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </section>
+            );
+          })}
+        </section>
 
-      {/* Quiet Centered Gesture Hint Footer */}
-      <p className="mt-6 text-center text-xs font-semibold text-[#57534E]">
-        Aponte o dedo indicador sobre um cartão e faça pinça (polegar + indicador) para iniciar ·{' '}
-        <span className="font-mono text-[#14532D]">
-          {tracking.handDetected ? 'Mão detectada' : 'Levante a mão para a câmera'}
-        </span>
-      </p>
+        {/* Quiet Hand Status Bar */}
+        <div className="mt-6 rounded-full border border-[#D9CEB8] bg-[#FFFDF7]/90 px-4 py-1.5 font-mono text-xs font-bold text-[#14532D]">
+          {tracking.handDetected
+            ? 'Mão detectada · Aponte na fase e faça pinça!'
+            : 'Levante a mão para a câmera para mover o cursor'}
+        </div>
+      </main>
 
-      {/* Optional Floating Corner Preview (only when enabled) */}
       {camMode !== 'hidden' && (
         <div className="fixed bottom-4 right-4 z-40 w-64">
           <CameraMirror
@@ -305,6 +274,6 @@ export function MissionMapScreen({
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }

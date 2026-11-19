@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  EyeOff,
-  Hand,
-  Lightbulb,
-  Sparkles,
-  Star,
-  Video,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+import { CheckCircle2, Lightbulb, Sparkles, Star, Volume2 } from 'lucide-react';
 import { getMissionMeta } from '../data/missions';
 import {
   AccessibilitySettings,
@@ -34,6 +23,7 @@ import {
 } from '../utils/audio';
 import { ArtworkImage } from './ArtworkImage';
 import { CameraMirror } from './CameraMirror';
+import { GameHud } from './GameHud';
 
 export interface MissionCompletionPayload {
   domain: MissionDomain;
@@ -47,6 +37,7 @@ export interface MissionCompletionPayload {
 }
 
 interface MissionArenaProps {
+  totalStars: number;
   domain: MissionDomain;
   level: DifficultyLevel;
   challenges: MissionChallenge[];
@@ -57,11 +48,13 @@ interface MissionArenaProps {
   onToggleSound: () => void;
   onToggleNarration: () => void;
   onChangeCameraDisplayMode: (mode: CameraDisplayMode) => void;
+  onOpenGuardian: () => void;
   onCompleteMission: (payload: MissionCompletionPayload) => void;
   onHoldingChange: (item: { label: string; emoji: string } | null) => void;
 }
 
 export function MissionArena({
+  totalStars,
   domain,
   level,
   challenges,
@@ -72,6 +65,7 @@ export function MissionArena({
   onToggleSound,
   onToggleNarration,
   onChangeCameraDisplayMode,
+  onOpenGuardian,
   onCompleteMission,
   onHoldingChange,
 }: MissionArenaProps) {
@@ -86,25 +80,18 @@ export function MissionArena({
   } | null>(null);
   const [telepathyRevealed, setTelepathyRevealed] = useState(false);
 
-  // Drag & Drop state for drag_count / drag_buckets
   const [holdingDragId, setHoldingDragId] = useState<string | null>(null);
   const [placedByZone, setPlacedByZone] = useState<Record<string, DraggableItem[]>>({});
-
-  // Sequence order state
   const [holdingSeqId, setHoldingSeqId] = useState<string | null>(null);
   const [filledSlots, setFilledSlots] = useState<Record<number, SequenceSlotItem>>({});
-
-  // Hover highlight state for gesture targets
   const [hoveredTargetId, setHoveredTargetId] = useState<string | null>(null);
 
-  // Session telemetry refs
   const startTimeRef = useRef<number>(Date.now());
   const firstTryCountRef = useRef<number>(0);
   const hintsUsedRef = useRef<number>(0);
   const successfulPinchesRef = useRef<number>(0);
   const earlyDropsRef = useRef<number>(0);
 
-  // DOM element refs for hit-testing
   const dragItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const dropZoneRefs = useRef<Record<string, HTMLElement | null>>({});
   const seqPoolRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -122,7 +109,6 @@ export function MissionArena({
 
   const challenge = challenges[stepIndex];
 
-  // Reset per-challenge state whenever stepIndex changes
   useEffect(() => {
     setHintTier(0);
     setHadMissThisStep(false);
@@ -219,14 +205,11 @@ export function MissionArena({
   const triggerGentleMiss = useCallback(
     (customMsg?: string) => {
       setHadMissThisStep(true);
-      setHintTier((prev) => {
-        const next = Math.min(3, prev + 1) as 0 | 1 | 2 | 3;
-        return next;
-      });
+      setHintTier((prev) => Math.min(3, prev + 1) as 0 | 1 | 2 | 3);
       if (challenge?.telepathyThought) {
         setTelepathyRevealed(true);
       }
-      const msg = customMsg || `Quase lá! Dica: ${challenge?.hintText || 'tente novamente com calma.'}`;
+      const msg = customMsg || `Quase lá! ${challenge?.hintText || 'Tente com calma!'}`;
       setFeedback({ type: 'encourage', message: msg });
       playGentleEncourage(settings.soundEnabled);
       speakPtBr(msg, settings.narrationEnabled);
@@ -241,7 +224,7 @@ export function MissionArena({
       setTelepathyRevealed(true);
     }
     if (challenge) {
-      setFeedback({ type: 'encourage', message: `Dica da Família Forger: ${challenge.hintText}` });
+      setFeedback({ type: 'encourage', message: `Dica: ${challenge.hintText}` });
       playTelepathySparkle(settings.soundEnabled);
       speakPtBr(challenge.hintText, settings.narrationEnabled);
     }
@@ -261,7 +244,7 @@ export function MissionArena({
     }
   }, [placedByZone, settings.soundEnabled]);
 
-  // Main real-time webcam gesture interaction loop
+  // Real-time webcam hand-gesture interaction loop
   useEffect(() => {
     if (!challenge || advancingRef.current) return;
 
@@ -282,7 +265,7 @@ export function MissionArena({
     const justReleased = !isPinching && prevPinchRef.current;
     prevPinchRef.current = isPinching;
 
-    const isInside = (el: HTMLElement | null, pad = 12) => {
+    const isInside = (el: HTMLElement | null, pad = 14) => {
       if (!el) return false;
       const r = el.getBoundingClientRect();
       return (
@@ -293,32 +276,30 @@ export function MissionArena({
       );
     };
 
-    // 1. Check Telepathy Thought Bubble hover reveal (no pinch required — pointing activates telepathy!)
-    if (challenge.telepathyThought && !telepathyRevealed && isInside(telepathyZoneRef.current, 16)) {
+    if (challenge.telepathyThought && !telepathyRevealed && isInside(telepathyZoneRef.current, 18)) {
       setTelepathyRevealed(true);
       playTelepathySparkle(settings.soundEnabled);
       speakPtBr(challenge.telepathyThought, settings.narrationEnabled);
     }
 
-    // 2. Check toolbar buttons (Hint, Undo, Back) when not holding an item
     let hovered: string | null = null;
 
     if (!holdingDragId && !holdingSeqId) {
-      if (isInside(hintBtnRef.current, 10)) {
+      if (isInside(hintBtnRef.current, 12)) {
         hovered = 'btn_hint';
         if (justPinched) {
           successfulPinchesRef.current += 1;
           activateManualHint();
           return;
         }
-      } else if (isInside(undoBtnRef.current, 10)) {
+      } else if (isInside(undoBtnRef.current, 12)) {
         hovered = 'btn_undo';
         if (justPinched) {
           successfulPinchesRef.current += 1;
           handleUndoLastDrag();
           return;
         }
-      } else if (isInside(backBtnRef.current, 10)) {
+      } else if (isInside(backBtnRef.current, 12)) {
         hovered = 'btn_back';
         if (justPinched) {
           successfulPinchesRef.current += 1;
@@ -329,11 +310,9 @@ export function MissionArena({
       }
     }
 
-    // 3. Mode-specific interactions
     if (challenge.mode === 'pinch_choice') {
-      const choices = challenge.choices || [];
-      for (const ch of choices) {
-        if (isInside(choiceRefs.current[ch.id], 12)) {
+      for (const ch of challenge.choices || []) {
+        if (isInside(choiceRefs.current[ch.id], 14)) {
           hovered = `choice_${ch.id}`;
           if (justPinched) {
             successfulPinchesRef.current += 1;
@@ -351,7 +330,7 @@ export function MissionArena({
 
       if (!holdingDragId) {
         for (const item of remainingDragItems) {
-          if (isInside(dragItemRefs.current[item.id], 14)) {
+          if (isInside(dragItemRefs.current[item.id], 16)) {
             hovered = `drag_${item.id}`;
             if (justPinched) {
               successfulPinchesRef.current += 1;
@@ -363,10 +342,9 @@ export function MissionArena({
           }
         }
       } else {
-        // Currently holding an item — check drop zones
         let targetZone = null;
         for (const z of zones) {
-          if (isInside(dropZoneRefs.current[z.id], 24)) {
+          if (isInside(dropZoneRefs.current[z.id], 26)) {
             hovered = `zone_${z.id}`;
             targetZone = z;
             break;
@@ -391,12 +369,9 @@ export function MissionArena({
             if (currentCount + 1 === targetTotal) {
               triggerStepVictory(challenge.successMessage);
             } else if (currentCount + 1 > targetTotal) {
-              triggerGentleMiss(
-                `Ops! Passou de ${targetTotal}. Faça pinça em "Tirar 1" para ajustar!`
-              );
+              triggerGentleMiss(`Passou de ${targetTotal}! Faça pinça em "Tirar 1".`);
             }
           } else {
-            // drag_buckets
             const currentList = placedByZone[targetZone.id] || [];
             const matchesCategory = targetZone.acceptsCategory === item.category;
             const hasCapacity =
@@ -411,18 +386,13 @@ export function MissionArena({
               playItemDrop(settings.soundEnabled);
 
               const totalPlaced = Object.values(nextMap).reduce((acc, arr) => acc + arr.length, 0);
-              const totalExpected = (challenge.draggableItems || []).length;
-              if (totalPlaced >= totalExpected) {
+              if (totalPlaced >= (challenge.draggableItems || []).length) {
                 triggerStepVictory(challenge.successMessage);
               }
             } else if (!hasCapacity) {
-              triggerGentleMiss(
-                `A ${targetZone.label} já está completa! Coloque na outra tigela.`
-              );
+              triggerGentleMiss(`Essa tigela já completou! Tente na outra.`);
             } else {
-              triggerGentleMiss(
-                `${item.label} pertence a outro lugar! ${challenge.hintText}`
-              );
+              triggerGentleMiss(`${item.label} vai no outro lugar! ${challenge.hintText}`);
             }
           }
         }
@@ -433,7 +403,7 @@ export function MissionArena({
       if (!holdingSeqId) {
         for (const item of pool) {
           if (usedSeqIds.has(item.id)) continue;
-          if (isInside(seqPoolRefs.current[item.id], 14)) {
+          if (isInside(seqPoolRefs.current[item.id], 16)) {
             hovered = `seq_${item.id}`;
             if (justPinched) {
               successfulPinchesRef.current += 1;
@@ -448,7 +418,7 @@ export function MissionArena({
         let hoveredSlotIdx: number | null = null;
         for (const slotIdx of emptySequenceIndices) {
           if (filledSlots[slotIdx]) continue;
-          if (isInside(seqSlotRefs.current[slotIdx], 24)) {
+          if (isInside(seqSlotRefs.current[slotIdx], 26)) {
             hovered = `slot_${slotIdx}`;
             hoveredSlotIdx = slotIdx;
             break;
@@ -475,9 +445,7 @@ export function MissionArena({
                 triggerStepVictory(challenge.successMessage);
               }
             } else {
-              triggerGentleMiss(
-                `Quase! Tente observar a ordem certinha: ${challenge.hintText}`
-              );
+              triggerGentleMiss(`Quase! Veja a ordem certinha: ${challenge.hintText}`);
             }
           }
         }
@@ -520,149 +488,92 @@ export function MissionArena({
       : 0;
 
   const camMode = settings.cameraDisplayMode;
-  const cycleCameraMode = () => {
-    const next: CameraDisplayMode =
-      camMode === 'hidden' ? 'hand_only' : camMode === 'hand_only' ? 'video' : 'hidden';
-    onChangeCameraDisplayMode(next);
-  };
 
   return (
-    <main className="mx-auto max-w-[1000px] px-5 py-5">
-      {/* Centered Unobtrusive Top Mission HUD */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0] px-5 py-3">
-        <div className="flex items-center gap-4">
-          <button
-            ref={backBtnRef}
-            type="button"
-            onClick={onExitToMap}
-            className={`inline-flex items-center gap-1.5 rounded-xl border border-[#D9CEB8] bg-white px-3.5 py-2 text-xs font-bold text-[#1C1917] transition-transform duration-150 whitespace-nowrap cursor-pointer ${
-              hoveredTargetId === 'btn_back' ? 'scale-105 ring-2 ring-[#EC4899]' : ''
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Mapa</span>
-          </button>
-
-          <div>
-            <p className="text-xs font-semibold text-[#57534E]">
-              {missionMeta.skillLabel} · Nível {level}
-            </p>
-            <h1 className="font-display text-lg font-extrabold text-[#14532D]">
-              {missionMeta.title}
-            </h1>
-          </div>
-        </div>
-
-        {/* Step Progress & Quick Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-[#14532D] tabular-nums">
-              Etapa {stepIndex + 1}/{challenges.length}
+    <div className="flex min-h-screen flex-col">
+      {/* Floating Game HUD with 5 Glowing Mission Progress Stars */}
+      <GameHud
+        totalStars={totalStars}
+        settings={settings}
+        backLabel="Mapa"
+        backIcon="back"
+        backButtonRef={backBtnRef}
+        backHovered={hoveredTargetId === 'btn_back'}
+        onBack={onExitToMap}
+        onToggleSound={onToggleSound}
+        onToggleNarration={onToggleNarration}
+        onChangeCameraDisplayMode={onChangeCameraDisplayMode}
+        onOpenGuardian={onOpenGuardian}
+        centerSlot={
+          <div className="flex items-center gap-2 rounded-2xl border-2 border-[#D9CEB8] bg-[#FFFDF7] px-4 py-1.5 shadow-xs">
+            <span className="hidden font-display text-xs font-extrabold text-[#14532D] sm:inline">
+              {missionMeta.shortTitle}
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" aria-label={`Etapa ${stepIndex + 1} de ${challenges.length}`}>
               {challenges.map((c, idx) => (
-                <div
+                <Star
                   key={c.id}
-                  className={`h-2.5 w-6 rounded-full transition-colors ${
+                  className={`h-5 w-5 transition-transform duration-200 ${
                     idx < stepIndex
-                      ? 'bg-[#059669]'
+                      ? 'fill-[#EAB308] text-[#B45309] scale-105'
                       : idx === stepIndex
-                        ? 'bg-[#EC4899]'
-                        : 'bg-[#D9CEB8]'
+                        ? 'fill-[#FBCFE8] text-[#EC4899] scale-115'
+                        : 'fill-[#EFE9D8] text-[#D9CEB8]'
                   }`}
                 />
               ))}
             </div>
           </div>
+        }
+      />
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={cycleCameraMode}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#D9CEB8] bg-white px-2.5 py-2 text-xs font-bold text-[#1C1917] hover:bg-[#FFFBF2] whitespace-nowrap cursor-pointer"
-              title="Alternar câmera: Oculta, Só Mão ou Vídeo"
-            >
-              {camMode === 'hidden' ? (
-                <EyeOff className="h-3.5 w-3.5 text-[#14532D]" />
-              ) : camMode === 'hand_only' ? (
-                <Hand className="h-3.5 w-3.5 text-[#EC4899]" />
-              ) : (
-                <Video className="h-3.5 w-3.5 text-[#B45309]" />
-              )}
-              <span>
-                {camMode === 'hidden'
-                  ? 'Câmera Oculta'
-                  : camMode === 'hand_only'
-                    ? 'Só Mão'
-                    : 'Vídeo'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onToggleSound}
-              className="rounded-xl border border-[#D9CEB8] bg-white p-2 text-[#1C1917] hover:bg-[#FFFBF2] cursor-pointer"
-              title={settings.soundEnabled ? 'Silenciar efeitos' : 'Ativar efeitos'}
-              aria-label="Alternar som"
-            >
-              {settings.soundEnabled ? (
-                <Volume2 className="h-4 w-4 text-[#14532D]" />
-              ) : (
-                <VolumeX className="h-4 w-4 text-[#DC2626]" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onToggleNarration}
-              className={`rounded-xl border px-3 py-2 text-xs font-bold whitespace-nowrap cursor-pointer ${
-                settings.narrationEnabled
-                  ? 'border-[#14532D] bg-[#14532D] text-white'
-                  : 'border-[#D9CEB8] bg-white text-[#57534E]'
-              }`}
-            >
-              {settings.narrationEnabled ? 'Voz: On' : 'Voz: Off'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* CENTERED PRIMARY INTERACTIVE STAGE (Zero side video distraction!) */}
-      <section className="mx-auto flex flex-col justify-between rounded-3xl border border-[#D9CEB8] bg-white p-6 shadow-sm sm:p-8">
-          {/* Scene Banner & Short Clear Prompt */}
-          <div className="flex flex-col gap-4 border-b border-[#EFE7D4] pb-5 sm:flex-row sm:items-center">
-            <div className="h-20 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#D9CEB8] bg-[#F6EFE0]">
+      {/* CENTERED COZY GAME BOARD */}
+      <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col justify-center px-4 py-3 sm:px-6">
+        <section className="game-board-frame flex flex-col justify-between p-5 sm:p-7">
+          {/* Character Companion Speech Header */}
+          <div className="flex items-center gap-4 rounded-3xl border-2 border-[#EFE7D4] bg-[#F8F4E8] p-3.5 sm:p-4">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-3 border-[#FFFDF7] bg-[#DCFCE7] shadow-sm sm:h-20 sm:w-20">
               <ArtworkImage
                 src={missionMeta.imagePath}
-                alt={challenge.sceneTag}
+                alt={challenge.characterName}
                 fallbackTitle={challenge.characterName}
                 fallbackGradient={missionMeta.fallbackGradient}
                 className="h-full w-full object-cover"
               />
             </div>
+
             <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#57534E]">
-                <span>{challenge.characterName}</span>
-                <span aria-hidden="true">·</span>
-                <span>{challenge.sceneTag}</span>
-              </div>
-              <h2 className="mt-1 font-display text-2xl font-extrabold leading-snug text-[#1C1917]">
+              <span className="font-display text-xs font-extrabold text-[#1B6B3A]">
+                {challenge.characterName}
+              </span>
+              <h1 className="mt-0.5 font-display text-xl font-extrabold leading-snug text-[#1C1917] sm:text-2xl">
                 {challenge.prompt}
-              </h2>
+              </h1>
             </div>
+
+            <button
+              type="button"
+              onClick={() => speakPtBr(challenge.narrationText, true)}
+              className="game-btn-3d flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-[#D9CEB8] border-b-[#BFB195] bg-[#FFFDF7] text-[#14532D] hover:bg-[#DCFCE7] cursor-pointer"
+              title="Ouvir instrução novamente"
+              aria-label="Ouvir instrução novamente"
+            >
+              <Volume2 className="h-5 w-5" />
+            </button>
           </div>
 
-          {/* Feedback Banner (Always warm & non-punitive) */}
+          {/* Warm Celebratory or Encouraging Toast */}
           {feedback && (
             <div
-              className={`mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              className={`mt-4 flex items-center justify-center gap-2.5 rounded-2xl border-2 px-5 py-3 text-center font-display text-base font-bold ${
                 feedback.type === 'success'
-                  ? 'border-[#059669]/40 bg-[#DCFCE7] text-[#14532D]'
-                  : 'border-[#EAB308]/50 bg-[#FEF9C3] text-[#78350F]'
+                  ? 'border-[#059669] bg-[#DCFCE7] text-[#14532D]'
+                  : 'border-[#EAB308] bg-[#FEF9C3] text-[#78350F]'
               }`}
               role="status"
             >
               {feedback.type === 'success' ? (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-[#059669]" />
+                <CheckCircle2 className="h-6 w-6 shrink-0 text-[#059669]" />
               ) : (
                 <Sparkles className="h-5 w-5 shrink-0 text-[#B45309]" />
               )}
@@ -670,20 +581,13 @@ export function MissionArena({
             </div>
           )}
 
-          {/* DYNAMIC INTERACTIVE WORKSPACE BY MODE */}
-          <div className="my-6 flex-1">
-            {/* MODE 1: DRAG COUNT (Anya's Peanuts) */}
+          {/* PLAYABLE GAME SURFACE */}
+          <div className="my-5 flex-1">
+            {/* MODE 1: DRAG COUNT */}
             {challenge.mode === 'drag_count' && challenge.dropZones && (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-                {/* Draggable Source Tray */}
-                <div className="rounded-2xl border border-[#EFE7D4] bg-[#FFFBF2] p-5 md:col-span-7">
-                  <div className="mb-3 flex items-center justify-between text-xs font-bold text-[#57534E]">
-                    <span>Bandeja de Amendoins (Faça pinça para pegar)</span>
-                    <span className="font-mono tabular-nums">
-                      Restam: {remainingDragItems.length}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-12">
+                <div className="rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-5 md:col-span-7">
+                  <div className="grid grid-cols-3 gap-3.5 sm:grid-cols-4">
                     {remainingDragItems.map((item, idx) => {
                       const isHolding = holdingDragId === item.id;
                       const isHovered = hoveredTargetId === `drag_${item.id}`;
@@ -693,18 +597,18 @@ export function MissionArena({
                           ref={(el) => {
                             dragItemRefs.current[item.id] = el;
                           }}
-                          className={`flex h-24 flex-col items-center justify-center rounded-2xl border-2 transition-transform duration-150 select-none ${
+                          className={`game-token-3d flex h-24 flex-col items-center justify-center rounded-2xl select-none ${
                             isHolding
                               ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
                               : isHovered
-                                ? 'scale-105 border-[#EC4899] bg-[#FCE7F3] shadow-md'
-                                : `${item.accentBorder} ${item.accentBg}`
+                                ? '-translate-y-1 scale-108 border-[#EC4899] border-b-[#9D174D] bg-[#FCE7F3] shadow-lg'
+                                : `${item.accentBorder} border-b-[#B45309] ${item.accentBg}`
                           }`}
                         >
                           <span className="text-4xl leading-none">{item.emoji}</span>
                           {hintTier >= 2 && (
                             <span className="mt-1 font-mono text-xs font-bold text-[#78350F] tabular-nums">
-                              #{idx + 1}
+                              {idx + 1}
                             </span>
                           )}
                         </div>
@@ -713,7 +617,6 @@ export function MissionArena({
                   </div>
                 </div>
 
-                {/* Target Satchel Zone */}
                 <div className="flex flex-col gap-3 md:col-span-5">
                   {challenge.dropZones.map((zone) => {
                     const placed = placedByZone[zone.id] || [];
@@ -725,7 +628,7 @@ export function MissionArena({
                         ref={(el) => {
                           dropZoneRefs.current[zone.id] = el;
                         }}
-                        className={`flex min-h-[240px] flex-1 flex-col items-center justify-between rounded-3xl border-4 border-dashed p-5 text-center transition-transform duration-150 ${
+                        className={`flex min-h-[250px] flex-1 flex-col items-center justify-between rounded-[2rem] border-4 border-dashed p-5 text-center shadow-inner transition-transform duration-150 ${
                           holdingDragId && isHovered
                             ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                             : hintTier >= 3 && holdingDragId
@@ -734,28 +637,22 @@ export function MissionArena({
                         }`}
                       >
                         <div>
-                          <span className="text-5xl leading-none">{zone.emoji}</span>
-                          <h3 className="mt-2 font-display text-xl font-extrabold text-[#14532D]">
+                          <span className="text-6xl leading-none">{zone.emoji}</span>
+                          <h2 className="mt-2 font-display text-xl font-extrabold text-[#14532D]">
                             {zone.label}
-                          </h3>
-                          <p className="mt-1 font-mono text-lg font-bold text-[#1C1917] tabular-nums">
+                          </h2>
+                          <div className="mt-2 inline-flex rounded-xl bg-white/90 px-4 py-1 font-display text-2xl font-extrabold text-[#1C1917] tabular-nums shadow-xs">
                             {placed.length} / {target}
-                          </p>
+                          </div>
                         </div>
 
                         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                           {placed.map((p) => (
-                            <span key={p.id} className="text-2xl leading-none">
+                            <span key={p.id} className="text-3xl leading-none">
                               {p.emoji}
                             </span>
                           ))}
                         </div>
-
-                        <p className="mt-2 text-xs font-semibold text-[#57534E]">
-                          {holdingDragId
-                            ? 'Solte a pinça aqui dentro!'
-                            : 'Arraste os amendoins para cá'}
-                        </p>
                       </div>
                     );
                   })}
@@ -765,25 +662,21 @@ export function MissionArena({
                       ref={undoBtnRef}
                       type="button"
                       onClick={handleUndoLastDrag}
-                      className={`rounded-xl border-2 border-[#B45309] bg-[#FEF3C7] px-4 py-2.5 text-sm font-bold text-[#78350F] transition-transform cursor-pointer ${
-                        hoveredTargetId === 'btn_undo' ? 'scale-105 ring-2 ring-[#EC4899]' : ''
+                      className={`game-btn-3d rounded-2xl border-2 border-[#B45309] border-b-[#78350F] bg-[#FEF3C7] px-4 py-3 font-display text-sm font-extrabold text-[#78350F] cursor-pointer ${
+                        hoveredTargetId === 'btn_undo' ? 'scale-105 ring-4 ring-[#FBCFE8]' : ''
                       }`}
                     >
-                      Pinça aqui para Tirar 1
+                      Tirar 1
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* MODE 2: DRAG TO BUCKETS (Routine Bag / Bond Sharing / Forger Classification) */}
+            {/* MODE 2: DRAG TO BUCKETS */}
             {challenge.mode === 'drag_buckets' && challenge.dropZones && (
-              <div className="flex flex-col gap-6">
-                {/* Mixed Objects Tray */}
-                <div className="rounded-2xl border border-[#EFE7D4] bg-[#FFFBF2] p-4">
-                  <p className="mb-3 text-xs font-bold text-[#57534E]">
-                    Faça pinça em um objeto e solte na área certa abaixo:
-                  </p>
+              <div className="flex flex-col gap-5">
+                <div className="rounded-3xl border-2 border-[#EFE7D4] bg-[#FAF6EB] p-4">
                   <div className="flex flex-wrap justify-center gap-3.5">
                     {remainingDragItems.map((item) => {
                       const isHolding = holdingDragId === item.id;
@@ -794,16 +687,16 @@ export function MissionArena({
                           ref={(el) => {
                             dragItemRefs.current[item.id] = el;
                           }}
-                          className={`flex min-w-[112px] flex-col items-center justify-center rounded-2xl border-2 px-4 py-3.5 transition-transform duration-150 select-none ${
+                          className={`game-token-3d flex min-w-[116px] flex-col items-center justify-center rounded-2xl px-4 py-3.5 select-none ${
                             isHolding
                               ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
                               : isHovered
-                                ? 'scale-105 border-[#EC4899] bg-[#FCE7F3] shadow-md'
-                                : `${item.accentBorder} ${item.accentBg}`
+                                ? '-translate-y-1 scale-108 border-[#EC4899] border-b-[#9D174D] bg-[#FCE7F3] shadow-lg'
+                                : `${item.accentBorder} border-b-[#57534E]/40 ${item.accentBg}`
                           }`}
                         >
-                          <span className="text-4xl leading-none">{item.emoji}</span>
-                          <span className="mt-1.5 text-xs font-bold text-[#1C1917]">
+                          <span className="text-5xl leading-none">{item.emoji}</span>
+                          <span className="mt-1.5 font-display text-sm font-extrabold text-[#1C1917]">
                             {item.label}
                           </span>
                         </div>
@@ -812,7 +705,6 @@ export function MissionArena({
                   </div>
                 </div>
 
-                {/* Target Buckets / Folders */}
                 <div
                   className={`grid grid-cols-1 gap-4 ${
                     challenge.dropZones.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
@@ -836,7 +728,7 @@ export function MissionArena({
                         ref={(el) => {
                           dropZoneRefs.current[zone.id] = el;
                         }}
-                        className={`flex min-h-[175px] flex-col items-center justify-between rounded-3xl border-4 border-dashed p-5 text-center transition-transform duration-150 ${
+                        className={`flex min-h-[185px] flex-col items-center justify-between rounded-[2rem] border-4 border-dashed p-5 text-center shadow-inner transition-transform duration-150 ${
                           holdingDragId && isHovered
                             ? 'scale-105 border-[#059669] bg-[#DCFCE7] shadow-lg'
                             : shouldHintGlow
@@ -845,17 +737,14 @@ export function MissionArena({
                         }`}
                       >
                         <div>
-                          <span className="text-4xl leading-none">{zone.emoji}</span>
-                          <h3 className="mt-1.5 font-display text-lg font-extrabold text-[#1C1917]">
+                          <span className="text-5xl leading-none">{zone.emoji}</span>
+                          <h2 className="mt-1.5 font-display text-lg font-extrabold text-[#1C1917]">
                             {zone.label}
-                          </h3>
-                          {zone.subtitle && (
-                            <p className="text-xs font-semibold text-[#57534E]">
-                              {zone.subtitle}
-                              {zone.targetCount
-                                ? ` · ${placed.length}/${zone.targetCount}`
-                                : ''}
-                            </p>
+                          </h2>
+                          {zone.targetCount && (
+                            <span className="mt-1 inline-block rounded-lg bg-white/85 px-2.5 py-0.5 font-mono text-sm font-bold text-[#14532D] tabular-nums">
+                              {placed.length} / {zone.targetCount}
+                            </span>
                           )}
                         </div>
 
@@ -863,7 +752,7 @@ export function MissionArena({
                           {placed.map((p) => (
                             <span
                               key={p.id}
-                              className="rounded-xl bg-white/90 px-2.5 py-1 text-lg shadow-xs"
+                              className="rounded-xl bg-white/95 px-2.5 py-1 text-2xl shadow-xs"
                               title={p.label}
                             >
                               {p.emoji}
@@ -877,24 +766,20 @@ export function MissionArena({
               </div>
             )}
 
-            {/* MODE 3: SEQUENCE ORDER (Routine Steps & Twilight's WISE Code Patterns) */}
+            {/* MODE 3: SEQUENCE ORDER */}
             {challenge.mode === 'sequence_order' && challenge.sequencePromptItems && (
-              <div className="flex flex-col gap-6">
-                {/* Sequence Slots Board */}
-                <div className="rounded-3xl border-2 border-[#14532D]/25 bg-[#F6EFE0] p-5">
-                  <p className="mb-3 text-xs font-bold text-[#14532D]">
-                    Sequência da Missão (Arraste as peças corretas para os espaços &ldquo;?&rdquo;):
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex flex-col gap-5">
+                <div className="rounded-[2rem] border-3 border-[#DFD4BC] bg-[#F4EFE0] p-5 shadow-inner">
+                  <div className="flex flex-wrap items-center justify-center gap-3.5">
                     {challenge.sequencePromptItems.map((fixedItem, idx) => {
                       if (fixedItem) {
                         return (
                           <div
                             key={`fixed_${idx}`}
-                            className={`flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-2 border-[#D9CEB8] ${fixedItem.bgClass} p-2 text-center`}
+                            className={`game-token-3d flex h-28 w-28 flex-col items-center justify-center rounded-2xl border-[#D9CEB8] border-b-[#BFB195] ${fixedItem.bgClass} p-2 text-center`}
                           >
                             <span className="text-4xl leading-none">{fixedItem.emoji}</span>
-                            <span className="mt-1.5 text-xs font-bold text-[#1C1917]">
+                            <span className="mt-1.5 font-display text-xs font-extrabold text-[#1C1917]">
                               {fixedItem.label}
                             </span>
                           </div>
@@ -914,7 +799,7 @@ export function MissionArena({
                           ref={(el) => {
                             seqSlotRefs.current[idx] = el;
                           }}
-                          className={`flex h-32 w-32 flex-col items-center justify-center rounded-2xl border-4 border-dashed p-2 text-center transition-transform duration-150 ${
+                          className={`flex h-32 w-32 flex-col items-center justify-center rounded-3xl border-4 border-dashed p-2 text-center transition-transform duration-150 ${
                             placed
                               ? 'border-solid border-[#059669] bg-[#DCFCE7]'
                               : holdingSeqId && isHovered
@@ -927,19 +812,14 @@ export function MissionArena({
                           {placed ? (
                             <>
                               <span className="text-4xl leading-none">{placed.emoji}</span>
-                              <span className="mt-1 text-xs font-bold text-[#14532D]">
+                              <span className="mt-1 font-display text-xs font-extrabold text-[#14532D]">
                                 {placed.label}
                               </span>
                             </>
                           ) : (
-                            <>
-                              <span className="font-display text-3xl font-extrabold text-[#EC4899]">
-                                {emptySequenceIndices.length > 1 ? `${emptyOrderIdx + 1}º` : '?'}
-                              </span>
-                              <span className="mt-1 text-[11px] font-semibold text-[#57534E]">
-                                Solte aqui
-                              </span>
-                            </>
+                            <span className="font-display text-4xl font-extrabold text-[#EC4899]">
+                              {emptySequenceIndices.length > 1 ? `${emptyOrderIdx + 1}º` : '?'}
+                            </span>
                           )}
                         </div>
                       );
@@ -947,76 +827,69 @@ export function MissionArena({
                   </div>
                 </div>
 
-                {/* Draggable Sequence Pool */}
-                <div className="rounded-2xl border border-[#EFE7D4] bg-[#FFFBF2] p-5">
-                  <p className="mb-3 text-xs font-bold text-[#57534E]">
-                    Peças disponíveis (Faça pinça para pegar e arrastar):
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    {(challenge.sequencePool || []).map((item) => {
-                      if (usedSeqIds.has(item.id)) return null;
-                      const isHolding = holdingSeqId === item.id;
-                      const isHovered = hoveredTargetId === `seq_${item.id}`;
-                      const nextEmptyPos = emptySequenceIndices.findIndex((i) => !filledSlots[i]);
-                      const isNextExpected =
-                        nextEmptyPos !== -1 &&
-                        challenge.sequenceExpectedOrder?.[nextEmptyPos] === item.id;
+                <div className="flex flex-wrap justify-center gap-4">
+                  {(challenge.sequencePool || []).map((item) => {
+                    if (usedSeqIds.has(item.id)) return null;
+                    const isHolding = holdingSeqId === item.id;
+                    const isHovered = hoveredTargetId === `seq_${item.id}`;
+                    const nextEmptyPos = emptySequenceIndices.findIndex((i) => !filledSlots[i]);
+                    const isNextExpected =
+                      nextEmptyPos !== -1 &&
+                      challenge.sequenceExpectedOrder?.[nextEmptyPos] === item.id;
 
-                      return (
-                        <div
-                          key={item.id}
-                          ref={(el) => {
-                            seqPoolRefs.current[item.id] = el;
-                          }}
-                          className={`flex min-w-[132px] flex-col items-center justify-center rounded-2xl border-2 px-5 py-4 transition-transform duration-150 select-none ${
-                            isHolding
-                              ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
-                              : isHovered
-                                ? 'scale-105 border-[#EC4899] bg-[#FCE7F3] shadow-lg'
-                                : hintTier >= 3 && isNextExpected
-                                  ? 'animate-hint-halo border-[#EAB308] bg-[#FEF9C3]'
-                                  : `border-[#14532D]/30 ${item.bgClass}`
-                          }`}
-                        >
-                          <span className="text-4xl leading-none">{item.emoji}</span>
-                          <span className="mt-2 text-sm font-bold text-[#1C1917]">
-                            {item.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    return (
+                      <div
+                        key={item.id}
+                        ref={(el) => {
+                          seqPoolRefs.current[item.id] = el;
+                        }}
+                        className={`game-token-3d flex min-w-[140px] flex-col items-center justify-center rounded-3xl px-5 py-4 select-none ${
+                          isHolding
+                            ? 'scale-90 border-dashed border-[#D9CEB8] bg-white opacity-35'
+                            : isHovered
+                              ? '-translate-y-1 scale-108 border-[#EC4899] border-b-[#9D174D] bg-[#FCE7F3] shadow-lg'
+                              : hintTier >= 3 && isNextExpected
+                                ? 'animate-hint-halo border-[#EAB308] border-b-[#B45309] bg-[#FEF9C3]'
+                                : `border-[#D9CEB8] border-b-[#BFB195] ${item.bgClass}`
+                        }`}
+                      >
+                        <span className="text-5xl leading-none">{item.emoji}</span>
+                        <span className="mt-2 font-display text-sm font-extrabold text-[#1C1917]">
+                          {item.label}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* MODE 4: PINCH CHOICE (Visual Math / Anya Telepathy / Bond Visions / Spy Attention) */}
+            {/* MODE 4: PINCH CHOICE */}
             {challenge.mode === 'pinch_choice' && (
-              <div className="flex flex-col gap-6">
-                {/* Telepathy Interactive Thought Cloud */}
+              <div className="flex flex-col gap-5">
                 {challenge.telepathyThought && (
                   <div
                     ref={telepathyZoneRef}
-                    className={`rounded-3xl border-2 p-6 text-center transition-colors ${
+                    className={`rounded-[2rem] border-3 p-5 text-center transition-colors ${
                       telepathyRevealed
                         ? 'border-[#EC4899] bg-[#FCE7F3]'
-                        : 'border-dashed border-[#EC4899] bg-[#FFFBF2]'
+                        : 'border-dashed border-[#EC4899] bg-[#FAF6EB]'
                     }`}
                   >
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#9D174D]">
+                    <div className="flex items-center justify-center gap-2 font-display text-xs font-extrabold text-[#9D174D]">
                       <Sparkles className="h-4 w-4" />
                       <span>
                         {telepathyRevealed
-                          ? `Pensamento de ${challenge.characterName} revelado!`
-                          : 'Aponte o dedo aqui para ativar a Telepatia da Anya!'}
+                          ? 'Pensamento revelado!'
+                          : 'Aponte aqui para usar a Telepatia da Anya!'}
                       </span>
                     </div>
                     {telepathyRevealed ? (
-                      <p className="mt-2 font-display text-xl font-bold text-[#1C1917]">
+                      <p className="mt-2 font-display text-xl font-extrabold text-[#1C1917]">
                         {challenge.telepathyThought}
                       </p>
                     ) : (
-                      <div className="mt-2 flex items-center justify-center gap-3 text-4xl">
+                      <div className="mt-2 flex items-center justify-center gap-3 text-5xl">
                         <span>{challenge.characterEmoji}</span>
                         <span>💭</span>
                       </div>
@@ -1024,35 +897,36 @@ export function MissionArena({
                   </div>
                 )}
 
-                {/* Visual Math / Logic Groups */}
                 {challenge.visualGroups && challenge.visualGroups.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-4 rounded-3xl border border-[#EFE7D4] bg-[#FFFBF2] p-5">
+                  <div className="flex flex-wrap items-center justify-center gap-4 rounded-[2rem] border-2 border-[#EFE7D4] bg-[#FAF6EB] p-5">
                     {challenge.visualGroups.map((grp, gIdx) => (
                       <div key={grp.title} className="flex items-center gap-4">
-                        <div className="rounded-2xl border border-[#D9CEB8] bg-white px-5 py-4 text-center">
-                          <p className="text-xs font-bold text-[#57534E]">{grp.title}</p>
+                        <div className="rounded-2xl border-2 border-[#DFD4BC] bg-[#FFFDF7] px-5 py-3.5 text-center shadow-xs">
+                          <p className="font-display text-xs font-extrabold text-[#57534E]">
+                            {grp.title}
+                          </p>
                           <div className="mt-2 flex max-w-[260px] flex-wrap justify-center gap-2">
                             {grp.tokens.map((tok, tIdx) => (
                               <div
                                 key={tok.id}
                                 className={`relative flex flex-col items-center justify-center rounded-xl px-2 py-1 ${
-                                  tok.crossedOut ? 'bg-[#FEE2E2]/70 opacity-50' : 'bg-[#FFFBF2]'
+                                  tok.crossedOut ? 'bg-[#FEE2E2]/80 opacity-50' : 'bg-[#FFFBF2]'
                                 }`}
                               >
-                                <span className="text-3xl leading-none">{tok.emoji}</span>
+                                <span className="text-4xl leading-none">{tok.emoji}</span>
                                 {tok.crossedOut && (
                                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-3xl font-black text-[#DC2626]">
                                     ✕
                                   </span>
                                 )}
                                 {hintTier >= 2 && !tok.crossedOut && (
-                                  <span className="mt-0.5 font-mono text-[11px] font-bold text-[#14532D] tabular-nums">
+                                  <span className="mt-0.5 font-mono text-xs font-bold text-[#14532D] tabular-nums">
                                     {tIdx + 1}
                                   </span>
                                 )}
                                 {tok.label.length <= 12 &&
                                   (domain === 'logic' || tok.label === '?') && (
-                                    <span className="mt-1 font-display text-xs font-bold text-[#1C1917]">
+                                    <span className="mt-1 font-display text-xs font-extrabold text-[#1C1917]">
                                       {tok.label}
                                     </span>
                                   )}
@@ -1071,7 +945,7 @@ export function MissionArena({
                   </div>
                 )}
 
-                {/* Large Pinchable Choice Cards */}
+                {/* Tactile 3D Choice Buttons */}
                 <div
                   className={`grid grid-cols-1 gap-4 ${
                     (challenge.choices || []).length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'
@@ -1087,26 +961,21 @@ export function MissionArena({
                         ref={(el) => {
                           choiceRefs.current[choice.id] = el;
                         }}
-                        className={`flex min-h-[132px] flex-col items-center justify-center rounded-3xl border-3 p-5 text-center transition-transform duration-150 select-none ${
+                        className={`game-token-3d flex min-h-[144px] flex-col items-center justify-center rounded-[1.8rem] p-5 text-center select-none ${
                           isHovered
-                            ? 'scale-105 border-[#EC4899] bg-[#FCE7F3] ring-4 ring-[#FBCFE8] shadow-lg'
+                            ? '-translate-y-1 scale-105 border-[#EC4899] border-b-[#9D174D] bg-[#FCE7F3] ring-4 ring-[#FBCFE8] shadow-xl'
                             : showHalo
-                              ? 'animate-hint-halo border-[#EAB308] bg-[#FEF9C3] shadow-md'
-                              : 'border-[#D9CEB8] bg-[#F6EFE0]'
+                              ? 'animate-hint-halo border-[#EAB308] border-b-[#B45309] bg-[#FEF9C3] shadow-md'
+                              : 'border-[#D9CEB8] border-b-[#BFB195] bg-[#FAF6EB]'
                         }`}
                       >
-                        <span className="text-4xl leading-none">{choice.emoji}</span>
+                        <span className="text-5xl leading-none">{choice.emoji}</span>
                         <span className="mt-2 font-display text-2xl font-extrabold text-[#1C1917]">
                           {choice.label}
                         </span>
                         {choice.sublabel && (
-                          <span className="mt-1 text-xs font-semibold text-[#57534E]">
+                          <span className="mt-0.5 text-xs font-semibold text-[#57534E]">
                             {choice.sublabel}
-                          </span>
-                        )}
-                        {isHovered && (
-                          <span className="mt-2 text-xs font-bold text-[#EC4899]">
-                            Faça Pinça para escolher!
                           </span>
                         )}
                       </div>
@@ -1117,55 +986,42 @@ export function MissionArena({
             )}
           </div>
 
-          {/* Bottom Stage Helper Strip */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#EFE7D4] pt-4">
+          {/* Bottom Tactile Hint Button + Quiet Hand Status */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <button
               ref={hintBtnRef}
               type="button"
               onClick={activateManualHint}
-              className={`inline-flex items-center gap-2 rounded-xl border-2 border-[#EAB308] bg-[#FEF9C3] px-4 py-2.5 text-sm font-bold text-[#78350F] transition-transform cursor-pointer ${
-                hoveredTargetId === 'btn_hint' ? 'scale-105 ring-2 ring-[#EC4899]' : ''
+              className={`game-btn-3d inline-flex items-center gap-2 rounded-2xl border-2 border-[#EAB308] border-b-[#B45309] bg-[#FEF9C3] px-5 py-2.5 font-display text-sm font-extrabold text-[#78350F] cursor-pointer ${
+                hoveredTargetId === 'btn_hint' ? 'scale-105 ring-4 ring-[#FBCFE8]' : ''
               }`}
             >
-              <Lightbulb className="h-4 w-4" />
-              <span>
-                {hintTier === 0
-                  ? 'Pedir Dica Visual (Pinça)'
-                  : hintTier < 3
-                    ? `Mais Dica (${hintTier}/3)`
-                    : 'Dica Máxima Ativa'}
-              </span>
+              <Lightbulb className="h-5 w-5" />
+              <span>{hintTier === 0 ? 'Dica' : `Mais Dica (${hintTier}/3)`}</span>
             </button>
 
-            <div className="flex items-center gap-3 text-xs font-semibold text-[#57534E]">
-              <span className="font-mono text-[#14532D]">
-                {tracking.handDetected
-                  ? tracking.isPinching
-                    ? 'Pinça ativa'
-                    : 'Mão detectada'
-                  : 'Mostre a mão para a câmera'}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Star className="h-4 w-4 fill-[#EAB308] text-[#B45309]" />
-                <span>Estrela Stella</span>
-              </span>
-            </div>
+            <span className="rounded-full bg-[#F4EFE0] px-3.5 py-1 font-mono text-xs font-bold text-[#14532D]">
+              {tracking.handDetected
+                ? tracking.isPinching
+                  ? 'Pinça ativa'
+                  : 'Mão na tela'
+                : 'Levante a mão para jogar'}
+            </span>
           </div>
         </section>
+      </main>
 
-        {/* Optional Floating Corner Preview (never pushes the centered game stage!) */}
-        {camMode !== 'hidden' && (
-          <div className="fixed bottom-4 right-4 z-40 w-64">
-            <CameraMirror
-              videoRef={videoRef}
-              tracking={tracking}
-              displayMode={camMode}
-              onChangeDisplayMode={onChangeCameraDisplayMode}
-              compact
-            />
-          </div>
-        )}
-    </main>
+      {camMode !== 'hidden' && (
+        <div className="fixed bottom-4 right-4 z-40 w-64">
+          <CameraMirror
+            videoRef={videoRef}
+            tracking={tracking}
+            displayMode={camMode}
+            onChangeDisplayMode={onChangeCameraDisplayMode}
+            compact
+          />
+        </div>
+      )}
+    </div>
   );
 }

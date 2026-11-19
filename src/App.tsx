@@ -6,7 +6,6 @@ import { MissionArena, MissionCompletionPayload } from './components/MissionAren
 import { MissionMapScreen } from './components/MissionMapScreen';
 import { MissionVictoryModal } from './components/MissionVictoryModal';
 import { TitleScreen } from './components/TitleScreen';
-import { TopBar } from './components/TopBar';
 import { generateMissionChallenges } from './data/missions';
 import { useHandTracking } from './hooks/useHandTracking';
 import {
@@ -163,8 +162,8 @@ export default function App() {
     screen === 'MISSION_VICTORY';
 
   return (
-    <div className="min-h-screen bg-[#FFFBF2] text-[#1C1917]">
-      {/* Persistent hidden video element keeps MediaPipe webcam stream alive seamlessly across screens */}
+    <div className="game-canvas-bg min-h-screen text-[#1C1917]">
+      {/* Persistent hidden video element keeps MediaPipe webcam stream alive seamlessly across game screens */}
       <video
         ref={videoRef}
         playsInline
@@ -173,29 +172,29 @@ export default function App() {
         className="pointer-events-none fixed h-px w-px opacity-0"
       />
 
-      <TopBar
-        currentScreen={screen}
-        cameraReady={handTracking.status === 'ready'}
-        onNavigate={handleNavigate}
-      />
-
       {screen === 'TITLE_MENU' && (
         <TitleScreen
           progress={progress}
           cameraReady={handTracking.status === 'ready'}
           onStart={handleStartFromTitle}
+          onOpenGuardian={() => handleNavigate('GUARDIAN_PANEL')}
         />
       )}
 
       {screen === 'CALIBRATION' && (
         <CalibrationScreen
+          totalStars={progress.totalStellaStars}
           videoRef={videoRef}
           tracking={handTracking}
           settings={progress.settings}
           onStartCamera={startCamera}
           onCalibrationComplete={handleCalibrationComplete}
           onHoldingChange={setHoldingCursorItem}
+          onToggleSound={handleToggleSound}
+          onToggleNarration={handleToggleNarration}
           onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
+          onBackHome={() => handleNavigate('TITLE_MENU')}
+          onOpenGuardian={() => handleNavigate('GUARDIAN_PANEL')}
         />
       )}
 
@@ -208,13 +207,17 @@ export default function App() {
           onSelectLevel={setSelectedLevel}
           onSelectMission={(d) => handleStartMission(d)}
           onToggleSound={handleToggleSound}
+          onToggleNarration={handleToggleNarration}
           onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
+          onBackHome={() => handleNavigate('TITLE_MENU')}
+          onOpenGuardian={() => handleNavigate('GUARDIAN_PANEL')}
         />
       )}
 
       {screen === 'PLAYING' && activeChallenges.length > 0 && (
         <MissionArena
           key={`${activeDomain}_${selectedLevel}_${activeChallenges[0]?.id}`}
+          totalStars={progress.totalStellaStars}
           domain={activeDomain}
           level={selectedLevel}
           challenges={activeChallenges}
@@ -225,6 +228,7 @@ export default function App() {
           onToggleSound={handleToggleSound}
           onToggleNarration={handleToggleNarration}
           onChangeCameraDisplayMode={handleChangeCameraDisplayMode}
+          onOpenGuardian={() => handleNavigate('GUARDIAN_PANEL')}
           onCompleteMission={handleMissionCompleted}
           onHoldingChange={setHoldingCursorItem}
         />
